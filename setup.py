@@ -20,7 +20,7 @@ setup(
     keywords = 'library framework oauth oauth2 redis authentication',
     url = 'http://wedoist.com',
     packages = ['oauthist', ],
-    long_description = read('README.md'),
+    long_description = read('README.rst'),
     install_requires = ['redis', ],
     classifiers = [
         'Development Status :: 4 - Beta',
