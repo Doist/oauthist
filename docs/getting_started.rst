@@ -33,22 +33,26 @@ Use :func:`configure` function to set up the framework.
 Function accepts following parameters:
 
 - :option:`host`, :option:`port`, :option:`db`, etc (optional): set of parameters
-  to condigure connection to Redis server
+  to configure connection to Redis server
 - :option:`scopes` (optional): list of strings, defining allowed
-  `access token scopes`_. If not defined, all scopes are accepted.
+  `access token scopes`_. If unset, any scopes accepted.
 - :option:`authorization_code_timeout` (optional): expiration timeout of
   authorization code in seconds (by default, 3600).
 - :option:`access_token_timeout` (optional): expiration timeout of access token
   (by default ``None`` which means that token never expires unless explicitly
   revoked)
-- :option:`prefix` (recommended): the string prefix which will be used to store
+- :option:`prefix` (recommended): the string prefix to use to store
   and search for keys in Redis database
 
 Sample initialization:
 
 .. code-block:: python
 
-   >>> oauthist.configure(prefix='oauthist')
+   >>> from oauthist import Framework
+   >>> oauthist = Framework(prefix='oauthist')
+
+Code examples in manual suppose, that you have already the instance of
+framework, initialized as described.
 
 .. _getting_started_creating_clients:
 
