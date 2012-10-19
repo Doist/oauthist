@@ -131,9 +131,10 @@ class Model(object):
     def reserve_random_id(cls, max_attempts=10):
         key = cls._key('__all__')
         for _ in xrange(max_attempts):
-            ret = cls._orm.redis.sadd(key, random_string(cls._id_length))
+            value = random_string(cls._id_length)
+            ret = cls._orm.redis.sadd(key, value)
             if ret != 0:
-                return string
+                return value
         raise RuntimeError('Unable to reserve random id for model "%s"' % cls._model_name)
 
     @classmethod
@@ -144,6 +145,10 @@ class Model(object):
             ids = cls._orm.redis.smembers(all_key)
         for _id in ids:
             yield cls.get(_id)
+
+    @classmethod
+    def attach_orm(cls, orm):
+        cls._orm = orm
 
     def __init__(self, _id=None, **kwargs):
         if _id is not None:
