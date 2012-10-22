@@ -48,8 +48,8 @@ class Client(orm.TaggedAttrsModel):
 
 
     id_length = CLIENT_ID_LENGTH
-    # we don't want to add the attribute for redirect_urls
-    objects = orm.TaggedAttrsModelManager(['redirect_urls', ])
+    # we don't want to add the attribute for redirect_urls and client_secret
+    objects = orm.TaggedAttrsModelManager(['redirect_urls', 'client_secret', ])
 
     def save(self):
         # check client type
