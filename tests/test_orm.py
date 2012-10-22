@@ -157,7 +157,19 @@ def test_expire_saves_attribute(user):
     assert same_user.expire == datetime.datetime(2012, 1, 11)
 
 
-def test_expire_removes_object(user):
+def test_expire_removes_object_do_expire(user):
     user.set_expire(0)  # expire in 0 seconds
     user.save()
-    assert User.objects.get(user._id) is None
+    with mock.patch('oauthist.orm.managers.random_true') as random_true:
+        random_true.return_value = True
+        assert User.objects.get(user._id) is None
+        assert list(User.objects.all()) == []
+
+
+def test_expire_removes_object_do_not_expire(user):
+    user.set_expire(0)  # expire in 0 seconds
+    user.save()
+    with mock.patch('oauthist.orm.managers.random_true') as random_true:
+        random_true.return_value = False
+        assert User.objects.get(user._id) is None
+        assert list(User.objects.all()) == []
