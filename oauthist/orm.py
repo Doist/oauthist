@@ -4,8 +4,10 @@ ORM -- object-to-redis mapper
 
 .. code-block:: python
 
+    from oauthist import orm
+
     r = redis.Redis()
-    orm = ORM(r, prefix='foo')
+    orm.configure(r, prefix='foo')
 
     class User(orm.Model):
         pass
@@ -52,6 +54,7 @@ ORM -- object-to-redis mapper
 
 
 """
+import threading
 import pickle
 import string
 import random
@@ -59,19 +62,14 @@ import re
 
 #--- ORM object
 
-class ORM(object):
-    """
-    ORM object (generic settings for all models)
-    """
+orm = threading.local()
 
-    def __init__(self, redis, prefix=None):
-        self.redis = redis
-        self.prefix = prefix
-        # here we create inner classes for this ORM
-        class_attrs = {'_orm': self}
-        self.Model = type('Model', (Model, ),class_attrs)
-        self.TaggedModel = type('TaggedModel', (TaggedModel, ), class_attrs)
-        self.TaggedAttrsModel = type('TaggedAttrsModel', (TaggedAttrsModel, ), class_attrs)
+def configure(redis, prefix):
+    """
+    configure the ORM
+    """
+    orm.redis = redis
+    orm.prefix = prefix
 
 
 #--- Metaclass magic
@@ -79,6 +77,8 @@ class ORM(object):
 class ModelBase(type):
     """
     Metaclass for Model and its subclasses
+
+    Used to set up _model_name attribute on a basis of model class
     """
 
     def __new__(cls, name, parents, attrs):
@@ -87,6 +87,9 @@ class ModelBase(type):
         return type.__new__(cls, name, parents, attrs)
 
 def to_underscore(name):
+    """
+    Helper function converting CamelCase to underscore: camel_case
+    """
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
@@ -101,7 +104,7 @@ class Model(object):
 
     @classmethod
     def _key(cls, key, *args, **kwargs):
-        prefix = cls._orm.prefix
+        prefix = orm.prefix
         model_name = cls._model_name
         if prefix:
             template = '{0}:{1}:{2}'.format(prefix, model_name, key)
@@ -115,14 +118,14 @@ class Model(object):
     @classmethod
     def full_cleanup(cls):
         key = cls._key('*')
-        keys = cls._orm.redis.keys(key)
+        keys = orm.redis.keys(key)
         if keys:
-            cls._orm.redis.delete(*keys)
+            orm.redis.delete(*keys)
 
     @classmethod
     def get(cls, _id):
         key = cls._key('object:{0}', _id)
-        value = cls._orm.redis.get(key)
+        value = orm.redis.get(key)
         if value:
             kwargs = pickle.loads(value)
             return cls(_id, **kwargs)
@@ -132,7 +135,7 @@ class Model(object):
         key = cls._key('__all__')
         for _ in xrange(max_attempts):
             value = random_string(cls._id_length)
-            ret = cls._orm.redis.sadd(key, value)
+            ret = orm.redis.sadd(key, value)
             if ret != 0:
                 return value
         raise RuntimeError('Unable to reserve random id for model "%s"' % cls._model_name)
@@ -141,14 +144,10 @@ class Model(object):
     def all(cls):
         all_key = cls._key('__all__')
         ids = []
-        if cls._orm.redis.exists(all_key):
-            ids = cls._orm.redis.smembers(all_key)
+        if orm.redis.exists(all_key):
+            ids = orm.redis.smembers(all_key)
         for _id in ids:
             yield cls.get(_id)
-
-    @classmethod
-    def attach_orm(cls, orm):
-        cls._orm = orm
 
     def __init__(self, _id=None, **kwargs):
         if _id is not None:
@@ -176,7 +175,7 @@ class Model(object):
         all_key = self._key('__all__')
         key = self._key('object:{0}', self._id)
         value = pickle.dumps(self.kwargs)
-        pipe = self._orm.redis.pipeline()
+        pipe = orm.redis.pipeline()
         pipe.sadd(all_key, self._id)
         pipe.set(key, value)
         pipe.execute()
@@ -184,7 +183,7 @@ class Model(object):
     def delete(self):
         all_key = self._key('__all__')
         key = self._key('object:{0}', self._id)
-        pipe = self._orm.redis.pipeline()
+        pipe = orm.redis.pipeline()
         pipe.srem(all_key, self._id)
         pipe.delete(key)
         pipe.execute()
@@ -211,7 +210,7 @@ class TaggedModel(Model):
         super(TaggedModel, self).save()
         if not self.tags:
             return
-        pipe = self._orm.redis.pipeline()
+        pipe = orm.redis.pipeline()
         tags_key = self._key('object:{0}:tags', self._id)
         pipe.sadd(tags_key, *self.tags)
         for tag in self.tags:
@@ -222,11 +221,11 @@ class TaggedModel(Model):
     @classmethod
     def get(cls, _id):
         key = cls._key('object:{0}', _id)
-        value = cls._orm.redis.get(key)
+        value = orm.redis.get(key)
         if value:
             kwargs = pickle.loads(value)
             tags_key = cls._key('object:{0}:tags', _id)
-            tags = cls._orm.redis.smembers(tags_key) or []
+            tags = orm.redis.smembers(tags_key) or []
             return cls(_id, tags=tags, **kwargs)
 
     @classmethod
@@ -237,7 +236,7 @@ class TaggedModel(Model):
         for tag in tags:
             key = cls._key('tags:{0}', tag)
             keys.append(key)
-        ids = cls._orm.redis.sinter(*keys)
+        ids = orm.redis.sinter(*keys)
         for _id in ids:
             yield cls.get(_id)
 
@@ -254,7 +253,7 @@ class TaggedAttrsModel(TaggedModel):
     @classmethod
     def get(cls, _id):
         key = cls._key('object:{0}', _id)
-        value = cls._orm.redis.get(key)
+        value = orm.redis.get(key)
         if value:
             kwargs = pickle.loads(value)
             return cls(_id, **kwargs)
@@ -268,7 +267,7 @@ class TaggedAttrsModel(TaggedModel):
         for tag in tags:
             key = cls._key('tags:{0}', tag)
             keys.append(key)
-        ids = cls._orm.redis.sinter(*keys)
+        ids = orm.redis.sinter(*keys)
         for _id in ids:
             yield cls.get(_id)
 

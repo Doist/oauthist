@@ -2,10 +2,10 @@
 import mock
 import pytest
 import redis
-from oauthist.orm import ORM, Model
+from oauthist import orm
 
 
-orm = ORM(redis.Redis(), 'test_orm')
+orm.configure(redis.Redis(), 'test_orm')
 
 class User(orm.Model):
     _id_length = 16
@@ -122,21 +122,3 @@ def test_auto_id_failed_random():
         User(name='Foo bar').save()
         with pytest.raises(RuntimeError):
             User(name='Foo bar').save()
-
-#--- Test attach ORM
-
-class Foo(Model):
-    _id_length = 16
-
-
-def test_attach_orm():
-    foo = Foo()
-    foo2 = Foo()
-    with pytest.raises(AttributeError):
-        foo._key(1)
-    Foo.attach_orm(orm)
-    assert foo._key(1) == 'test_orm:foo:1'
-    assert foo2._key(1) == 'test_orm:foo:1'
-    foo.save()
-    same_foo = Foo.get(foo._id)
-    assert foo == same_foo
