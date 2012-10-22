@@ -1,1 +1,1 @@
-from oauthist.framework import Framework
+from oauthist.framework import *

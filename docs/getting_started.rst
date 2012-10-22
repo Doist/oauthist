@@ -48,11 +48,11 @@ Sample initialization:
 
 .. code-block:: python
 
-   >>> from oauthist import Framework
-   >>> oauthist = Framework(prefix='oauthist')
+   >>> import oauthist
+   >>> oauthist.configure(redis.Redis(), prefix='oauthist')
 
-Code examples in manual suppose, that you have already the instance of
-framework, initialized as described.
+Code examples in manual suppose, that you have already the framework,
+initialized as described.
 
 .. _getting_started_creating_clients:
 
@@ -65,8 +65,7 @@ OAuth server, the only two arguments here are required:
 
 - :option:`client_type`: the type of client, according to OAuth sepcification
   (can be either "web", "user-agent" or "native")
-- :option:`redirect_uri`: redirection URI (string) or the set of accepted
-  redirection URIs (list of strings).
+- :option:`redirect_urls`: list of redirection URL (strings).
 
 .. note:: to prevent the "`Open Redirectors`_" type of attacks, all possible
           redirection URLs must be explicitly set up on the configuration step.
@@ -76,10 +75,10 @@ secret will also be issued
 
 .. code-block:: python
 
-   >>> extra_kwargs = dict(name='My Client', description='Hello world')
-   >>> client = oauthist.register_client(client_type='web',
-                                         redirect_uri='http://example.com/oauth2cb',
-                                         **extra_kwargs)
+   >>> extra_kwargs = dict(user_id=1234, name='My Client', description='Hello world')
+   >>> client = oauthist.Client(client_type='web',
+                                redirect_urls=['http://example.com/oauth2cb'],
+                                **extra_kwargs)
    >>> client.id
    'ORG8hSAuTEb762AO'
    >>> client.secret
@@ -87,8 +86,19 @@ secret will also be issued
    >>> client.name
    'My Client'
 
-All arguments, passed as extra kwargs, will be stored in the Redis, and can be
-accessed as object attributes.
+All arguments, passed as extra kwargs, must be strings or objects unambiguously
+converted to strings, will be stored in the Redis, and can be accessed as
+object attributes.
+
+The good part of it is that you may filter clients by any of the extra
+attributes, so that they can be considered also as tags:
+
+.. code-block:: python
+
+   >>> oauthist.Client(user_id=1234, ...).save()
+   >>> oauthist.Client(user_id=1234, ...).save()
+   >>> oauthist.Client.find(user_id=1234)  # return two clients
+
 
 .. _client registration: http://tools.ietf.org/html/rfc6749#section-2
 .. _access token scopes: http://tools.ietf.org/html/rfc6749#section-3.3
