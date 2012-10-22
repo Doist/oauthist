@@ -149,15 +149,15 @@ class Model(object):
         for _id in ids:
             yield cls.get(_id)
 
-    def __init__(self, _id=None, **kwargs):
+    def __init__(self, _id=None, **attrs):
         if _id is not None:
             _id = str(_id)
         self._id = _id
-        self.kwargs = kwargs
+        self.attrs = attrs
 
     def __getattr__(self, attr):
         try:
-            return self.kwargs[attr]
+            return self.attrs[attr]
         except KeyError as e:
             raise AttributeError(e)
 
@@ -174,7 +174,7 @@ class Model(object):
             self._id = self.reserve_random_id()
         all_key = self._key('__all__')
         key = self._key('object:{0}', self._id)
-        value = pickle.dumps(self.kwargs)
+        value = pickle.dumps(self.attrs)
         pipe = orm.redis.pipeline()
         pipe.sadd(all_key, self._id)
         pipe.set(key, value)
@@ -189,11 +189,11 @@ class Model(object):
         pipe.execute()
 
     def set(self, **kwargs):
-        self.kwargs.update(**kwargs)
+        self.attrs.update(**kwargs)
 
     def unset(self, *args):
         for arg in args:
-            self.kwargs.pop(arg, None)
+            self.attrs.pop(arg, None)
 
 
 
@@ -205,6 +205,7 @@ class TaggedModel(Model):
     def __init__(self, _id=None, tags=None, **kwargs):
         super(TaggedModel, self).__init__(_id, **kwargs)
         self.tags = tags or []
+        self._saved_tags = self.tags
 
     def save(self):
         super(TaggedModel, self).save()
@@ -216,7 +217,11 @@ class TaggedModel(Model):
         for tag in self.tags:
             key = self._key('tags:{0}', tag)
             pipe.sadd(key, self._id)
-            pipe.execute()
+        for tag_to_rm in set(self._saved_tags) - set(self.tags):
+            key = self._key('tags:{0}', tag_to_rm)
+            pipe.srem(key, self._id)
+        pipe.execute()
+        self._saved_tags = self.tags
 
     @classmethod
     def get(cls, _id):
@@ -226,7 +231,9 @@ class TaggedModel(Model):
             kwargs = pickle.loads(value)
             tags_key = cls._key('object:{0}:tags', _id)
             tags = orm.redis.smembers(tags_key) or []
-            return cls(_id, tags=tags, **kwargs)
+            instance = cls(_id, tags=tags, **kwargs)
+            instance._saved_tags = tags
+            return instance
 
     @classmethod
     def find(cls, *tags):
@@ -243,11 +250,14 @@ class TaggedModel(Model):
 
 class TaggedAttrsModel(TaggedModel):
 
+    _exclude_attrs = []
+
     @classmethod
-    def kwargs_to_tags(cls, kwargs):
+    def attrs_to_tags(cls, attrs):
         tags = []
-        for k, v in kwargs.iteritems():
-            tags.append(u'{0}:{1}'.format(unicode(k), unicode(v)))
+        for k, v in attrs.iteritems():
+            if k not in cls._exclude_attrs:
+                tags.append(u'{0}:{1}'.format(unicode(k), unicode(v)))
         return tags
 
     @classmethod
@@ -255,12 +265,12 @@ class TaggedAttrsModel(TaggedModel):
         key = cls._key('object:{0}', _id)
         value = orm.redis.get(key)
         if value:
-            kwargs = pickle.loads(value)
-            return cls(_id, **kwargs)
+            attrs = pickle.loads(value)
+            return cls(_id, **attrs)
 
     @classmethod
-    def find(cls, **kwargs):
-        tags = cls.kwargs_to_tags(kwargs)
+    def find(cls, **attrs):
+        tags = cls.attrs_to_tags(attrs)
         if not tags:
             return
         keys = []
@@ -272,9 +282,9 @@ class TaggedAttrsModel(TaggedModel):
             yield cls.get(_id)
 
 
-    def __init__(self, _id=None, **kwargs):
-        tags = self.kwargs_to_tags(kwargs)
-        super(TaggedAttrsModel, self).__init__(_id, tags, **kwargs)
+    def __init__(self, _id=None, **attrs):
+        tags = self.attrs_to_tags(attrs)
+        super(TaggedAttrsModel, self).__init__(_id, tags, **attrs)
 
 
 def random_string(len, corpus=None):

@@ -14,7 +14,7 @@ class Book(orm.TaggedModel):
     pass
 
 class TaggedUser(orm.TaggedAttrsModel):
-    pass
+    _exclude_attrs = ['name', ]
 
 def setup_function(function):
     User.full_cleanup()
@@ -89,8 +89,9 @@ def test_delete(user):
 #--- Test for tagged models
 
 def test_tags_save_delete(book, tags):
-    same_book = Book.get(1234)
+    same_book = Book.get(book._id)
     assert set(same_book.tags) == set(tags)
+
 
 def test_tags_find(book, tags):
     books = list(Book.find('foo'))
@@ -100,6 +101,15 @@ def test_tags_find(book, tags):
     books = list(Book.find('foo', 'bar'))
     assert books == [book, ]
 
+
+def test_tags_remove(book, tags):
+    book.tags = ['foo', ]  # we removed the tag "bar"
+    book.save()
+    books = list(Book.find('bar'))
+    assert books == []
+    books = list(Book.find('foo'))
+    assert books == [book, ]
+
 #--- Test for tagged attrs models
 
 def test_tagged_attrs_find(tagged_user):
@@ -107,6 +117,16 @@ def test_tagged_attrs_find(tagged_user):
     assert users == [tagged_user, ]
     assert set(users[0].tags) == set(tagged_user.tags)
 
+
+def test_exclude_tags(tagged_user):
+    """
+    test that TaggedUser._exclude_attrs works
+
+    We don't tags for attributes, whose names are listed in _exclude_attrs
+    property of the model
+    """
+    users = list(TaggedUser.find(name='John Doe'))
+    assert users == []
 
 #--- Test objects with no id
 
