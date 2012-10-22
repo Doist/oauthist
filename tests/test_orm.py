@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import datetime
 import mock
 import pytest
 import redis
@@ -137,8 +138,26 @@ def test_auto_id():
     assert user._id is not None
 
 def test_auto_id_failed_random():
-    with mock.patch('oauthist.orm.random_string') as random_string:
+    with mock.patch('oauthist.orm.managers.random_string') as random_string:
         random_string.return_value = '1234'
         User(name='Foo bar').save()
         with pytest.raises(RuntimeError):
             User(name='Foo bar').save()
+
+#--- Test expire
+
+def test_expire_saves_attribute(user):
+    with mock.patch('oauthist.orm.utils.utcnow') as utcnow:
+        utcnow.return_value = datetime.datetime(2012, 1, 1)
+        user.set_expire(datetime.timedelta(days=10))
+    user.save()
+    with mock.patch('oauthist.orm.managers.utcnow') as utcnow:
+        utcnow.return_value = datetime.datetime(2012, 1, 1)
+        same_user = User.objects.get(user._id)
+    assert same_user.expire == datetime.datetime(2012, 1, 11)
+
+
+def test_expire_removes_object(user):
+    user.set_expire(0)  # expire in 0 seconds
+    user.save()
+    assert User.objects.get(user._id) is None
