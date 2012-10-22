@@ -97,7 +97,7 @@ attributes, so that they can be considered also as tags:
 
    >>> oauthist.Client(user_id=1234, ...).save()
    >>> oauthist.Client(user_id=1234, ...).save()
-   >>> oauthist.Client.find(user_id=1234)  # return two clients
+   >>> oauthist.Client.objects.find(user_id=1234)  # return two clients
 
 
 .. _client registration: http://tools.ietf.org/html/rfc6749#section-2

@@ -45,10 +45,11 @@ def configure(redis_client=None, prefix=None, scopes=None, authorization_code_ti
 
 
 class Client(orm.TaggedAttrsModel):
-    _id_length = CLIENT_ID_LENGTH
 
+
+    id_length = CLIENT_ID_LENGTH
     # we don't want to add the attribute for redirect_urls
-    _exclude_attrs = ['redirect_urls', ]
+    objects = orm.TaggedAttrsModelManager(['redirect_urls', ])
 
     def save(self):
         # check client type
@@ -78,4 +79,4 @@ def full_cleanup():
     """
     Cleanup the Redis database completely
     """
-    Client.full_cleanup()
+    Client.objects.full_cleanup()

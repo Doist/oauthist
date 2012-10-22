@@ -8,22 +8,22 @@ from oauthist import orm
 orm.configure(redis.Redis(), 'test_orm')
 
 class User(orm.Model):
-    _id_length = 16
+    pass
 
 class Book(orm.TaggedModel):
     pass
 
 class TaggedUser(orm.TaggedAttrsModel):
-    _exclude_attrs = ['name', ]
+    objects = orm.TaggedAttrsModelManager(['name', ])
 
 def setup_function(function):
-    User.full_cleanup()
-    Book.full_cleanup()
+    User.objects.full_cleanup()
+    Book.objects.full_cleanup()
 
 
 def teardown_function(function):
-    User.full_cleanup()
-    Book.full_cleanup()
+    User.objects.full_cleanup()
+    Book.objects.full_cleanup()
 
 
 def pytest_funcarg__user(request):
@@ -55,20 +55,20 @@ def pytest_funcarg__tags(request):
 #--- Basic functionality of models
 
 def test_save_and_get(user):
-    same_user = User.get(1234)
+    same_user = User.objects.get(1234)
     assert same_user.name == 'John Doe'
     assert same_user.age == 30
 
 
 def test_get_none():
-    assert User.get(1234) is None
+    assert User.objects.get(1234) is None
 
 
 def test_update(user):
     user.set(name='Just Joe', gender='male')
     user.unset('age')
     user.save()
-    same_user = User.get(1234)
+    same_user = User.objects.get(1234)
     assert same_user.name == 'Just Joe'
     assert same_user.gender == 'male'
     with pytest.raises(AttributeError):
@@ -76,44 +76,44 @@ def test_update(user):
 
 
 def test_get_all(user):
-    users = list(User.all())
+    users = list(User.objects.all())
     assert users == [user, ]
 
 
 def test_delete(user):
     user.delete()
-    user_count = len(list(User.all()))
+    user_count = len(list(User.objects.all()))
     assert user_count == 0
 
 
 #--- Test for tagged models
 
 def test_tags_save_delete(book, tags):
-    same_book = Book.get(book._id)
+    same_book = Book.objects.get(book._id)
     assert set(same_book.tags) == set(tags)
 
 
 def test_tags_find(book, tags):
-    books = list(Book.find('foo'))
+    books = list(Book.objects.find('foo'))
     assert books == [book, ]
-    books = list(Book.find('bar'))
+    books = list(Book.objects.find('bar'))
     assert books == [book, ]
-    books = list(Book.find('foo', 'bar'))
+    books = list(Book.objects.find('foo', 'bar'))
     assert books == [book, ]
 
 
 def test_tags_remove(book, tags):
     book.tags = ['foo', ]  # we removed the tag "bar"
     book.save()
-    books = list(Book.find('bar'))
+    books = list(Book.objects.find('bar'))
     assert books == []
-    books = list(Book.find('foo'))
+    books = list(Book.objects.find('foo'))
     assert books == [book, ]
 
 #--- Test for tagged attrs models
 
 def test_tagged_attrs_find(tagged_user):
-    users = list(TaggedUser.find(age=30))
+    users = list(TaggedUser.objects.find(age=30))
     assert users == [tagged_user, ]
     assert set(users[0].tags) == set(tagged_user.tags)
 
@@ -125,7 +125,7 @@ def test_exclude_tags(tagged_user):
     We don't tags for attributes, whose names are listed in _exclude_attrs
     property of the model
     """
-    users = list(TaggedUser.find(name='John Doe'))
+    users = list(TaggedUser.objects.find(name='John Doe'))
     assert users == []
 
 #--- Test objects with no id
