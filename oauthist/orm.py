@@ -299,3 +299,47 @@ def random_string(len, corpus=None):
     if not corpus:
         corpus = string.ascii_letters + string.digits
     return ''.join(random.choice(corpus) for _ in xrange(len))
+
+
+def expire_to_datetime(expire, ts=None):
+    """
+    Convert datetime(), timedelta() or number of seconds to datetime object
+
+    :param expire: the expiration mark (None, seconds, datetime or timedelta)
+    :param ts: if defined, then use its value instead of datetime.now()
+               for relative expiration timestamps
+
+    :returns: datetime object, which is "naive" but considered as having UTC
+              timezone
+    """
+    if expire is None:
+        return None
+    if isinstance(expire, datetime.datetime):
+        return expire
+    if not ts:
+        ts = datetime.datetime.utcnow()
+    if isinstance(expire, datetime.timedelta):
+        return ts + expire
+    return ts + datetime.timedelta(seconds=expire)
+
+
+def datetime_to_timestamp(dt):
+    """
+    Convert datetime objects to correct timestamps
+
+    Consider naive datetimes as UTC ones
+    """
+    if dt is None:
+        return None
+    micro = dt.microsecond / 1e6
+    ts = calendar.timegm(dt.timetuple())
+    return ts + micro
+
+
+def timestamp_to_datetime(ts):
+    """
+    Convert timestamps to datetime objects
+    """
+    if ts is None:
+        return None
+    return datetime.datetime.utcfromtimestamp(ts)
