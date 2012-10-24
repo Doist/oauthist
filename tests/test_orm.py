@@ -20,11 +20,13 @@ class TaggedUser(orm.TaggedAttrsModel):
 def setup_function(function):
     User.objects.full_cleanup()
     Book.objects.full_cleanup()
+    TaggedUser.objects.full_cleanup()
 
 
 def teardown_function(function):
     User.objects.full_cleanup()
     Book.objects.full_cleanup()
+    TaggedUser.objects.full_cleanup()
 
 
 def pytest_funcarg__user(request):
@@ -89,6 +91,12 @@ def test_delete(user):
 
 #--- Test for tagged models
 
+def test_delete_objects_cleans_up_tags(book, tags):
+    book.delete()
+    assert len(Book.objects.find_ids(tags[0])) == 0
+    assert len(Book.objects.find_ids(tags[1])) == 0
+
+
 def test_tags_save_delete(book, tags):
     same_book = Book.objects.get(book._id)
     assert set(same_book.tags) == set(tags)
@@ -113,6 +121,7 @@ def test_tags_remove(book, tags):
 
 #--- Test for tagged attrs models
 
+
 def test_tagged_attrs_find(tagged_user):
     users = list(TaggedUser.objects.find(age=30))
     assert users == [tagged_user, ]
@@ -129,6 +138,14 @@ def test_exclude_tags(tagged_user):
     users = list(TaggedUser.objects.find(name='John Doe'))
     assert users == []
 
+
+def test_delete_tagged_model_removes_tags():
+    user = TaggedUser(age=20, name='John Doe')
+    user.save()
+    user.delete()
+    users = list(TaggedUser.objects.find(age=20))
+    assert users == []
+
 #--- Test objects with no id
 
 def test_auto_id():
@@ -136,13 +153,16 @@ def test_auto_id():
     assert user._id is None
     user.save()
     assert user._id is not None
+    user.delete()
 
 def test_auto_id_failed_random():
     with mock.patch('oauthist.orm.managers.random_string') as random_string:
         random_string.return_value = '1234'
-        User(name='Foo bar').save()
+        user = User(name='Foo bar')
+        user.save()
         with pytest.raises(RuntimeError):
             User(name='Foo bar').save()
+        user.delete()
 
 #--- Test expire
 
