@@ -121,35 +121,9 @@ two step authorization procedure.
 2. They exchange the secret code to access token
 
 Issuing a secret code basically means "creating correct redirect URI" with the
-code in its GET argument. The authorization server must ensure that user is
-logged in, all passed arguments are valid, and user agrees to authorize Client.
+code in its GET argument.
 
-Before starting the process of building the response user, we must ensure that
-request hasn't been forged in some way. It is important, because we must never
-send redirect to invalid or forged callback URI:
-
- If the request fails due to a missing, invalid, or mismatching
- redirection URI, or if the client identifier is missing or invalid,
- the authorization server SHOULD inform the resource owner of the
- error and MUST NOT automatically redirect the user-agent to the
- invalid redirection URI.
-
-Basically, we should consider three possible outcomes:
-
-- all steps passed successfully, create the code and make the redirect.
-- set of scopes or something else is invalid, or user refused to grant access,
-  then create the error message and make the redirect
-- redirect URI is suspicious / invalid. Don't redirect, but instead show the
-  error message right into the website interface.
-
-If user is turns out to be logged in, and he/she confirms the authorization,
-you call the :func:`get_redirect` function.
-
-Depending on the validity of client id, redirect uri and other parameters,
-function may return redirect object (subclass of strings) or raise the exception
-:class:`oauthist.InvalidRequest`.
-
-Create the :class:`CodeRequest` object
+To start working you should create the :class:`CodeRequest` object first.
 
 .. code-block:: python
 
@@ -164,50 +138,90 @@ If you use `Werkzeug`_ or the framework based on it, you may call
 
    >>> req = oauthist.CodeRequest.from_werkzeug(request)
 
-Then you should check if the request is itself valid, and if it is makes
-sense to go on with it. If the request is invalid (suspicious, forged, etc),
-you must stop handling it, and show the error message. The validation is easy.
+
+The procedure of issuing of the secret code works passes following steps.
+
+1. Server ensures, that request hasn't been forged in any way. If the request
+   is just broken, server stops normal processing of the request, and returns
+   the page, containing the error message:
+
+       If the request fails due to a missing, invalid, or mismatching
+       redirection URI, or if the client identifier is missing or invalid,
+       the authorization server SHOULD inform the resource owner of the
+       error and MUST NOT automatically redirect the user-agent to the
+       invalid redirection URI.
+
+   Here we refers to this state of request as "broken" and have corresponding
+   method of code request: :func:`code_request.is_broken`.
+
+2. Server performs some more formal checks. Currently the only check which
+   framework can do without any help from the application programmer is to
+   check for validity of received set of scopes. If scopes are invalid, it is
+   safe at this point to return redirect. We call this state of request
+   "invalid" and have a method :func:`code_request.is_invalid` for this sort
+   of checking.
+
+3. If everything looks good from the point of view of the framework, the
+   application programmer should save this request and ask user for permission
+   to authorize this request. It is important to not that while the code request
+   is saved, it doesn't mean at all that the code can be exchanged for access
+   token. Usually you store the code request along with user id attached:
+
+   .. code-block:: python
+
+        code_request.set(user_id=USER_ID)
+        code_request.save()
+
+
+4. Then server displays the confirmation window to the user, and depending on
+   user's answer the state of the request can change itself to "accepted" or to
+   "declined". When request is accepted, a new property "accepted" is defined and
+   set to True, when it is declined, the request is simply removed from the
+   database.
+
+   Usually handling of user input is provided in separate window.
+   To mark request as accepted, you invoke :meth:`code_request.accept`,
+   otherwise you run :meth:`code_request.decline`
+
+That's how the request handling can be performed in to views of Flask
+framework:
 
 .. code-block:: python
 
-   >>> if not req.is_valid():
-   ...     return render('error.html', error=req.error)
+    @app.route('/auth_endpt')
+    def auth_endpt():
+        code_req = CodeRequest.from_werkzeug(request)
+        if code_req.is_broken():
+            return render_template('server/auth_endpt_broken.html',
+                                   error=code_req.error)
+        if code_req.is_invalid():
+            return redirect(code_req.get_redirect())
+
+        # at this point we save the code request and wait for user confirmation
+        code_req.set(user_id=USER_ID)
+        code_req.save()
+        return render_template('server/auth_endpt_confirmation.html', code_req=code_req)
 
 
-Now, as request seems valid, you may perform some additional checks (the most
-important step is to ask user for confirmation), and then can issue the code or
-return the error.
+    @app.route('/auth_endpt/confirmation')
+    def auth_endpt_confirmation():
+        # get some information from the form
+        code_req_id = ...  # it can be passed between handlers in a hidden for field
+                           # or saved in session
+        # search for code request
+        code_req = CodeRequest.objects.get(code_req_id)
+        if user_declined_access():
+            code_req.decline(reason='access_denied')
+            return redirect(code_req.get_redirect())
+        else:
+            code_req.accept()
+            return redirect(code_req.get_redirect())
 
-As we have to connect the issued code with the user you've just registered,
-you should pass ``user_id`` parameter to the function. It may be the integer
-or the string, if you don't use integers as user ids.
+See `4.1.2.1 Error Response`_ section of RFC for more variants of `reason`
+argument of :func:`decline`.
 
-.. code-block:: python
-
-   >>> redirect_uri = req.get_redirect(user_id=user_id)
-   >>> str(redirect_uri)
-   'http://...?code=<...>&state=<...>'
-   >>> redirect_uri.succeeded
-   True
-   >>> redirect_uri.failed
-   False
-   >>> redirect_uri.code
-   '...'
-   >>> redirect_uri.scope
-   ['...', '...', '...']
-
-If all you want is to send the redirect, then just pass the return value to the
-HTTP redirect function of your framework. Additionally, you can get some extra
-parameters as object attributes.
-
-If you want to return error instead of issuing the code, use another argument of
-the same function.
-
-.. code-block:: python
-
-   >>> redirect_url = req.get_redirect(error='access_denied')
-
-See `4.1.2.1 Error Response`_ section of RFC for more variants of error argument.
+If user is turns out to be logged in, and confirmation received,
+you call the :func:`get_redirect` function.
 
 .. _Werkzeug: http://werkzeug.pocoo.org/
 .. _4.1.2.1 Error Response: http://tools.ietf.org/html/rfc6749#section-4.1.2.1
