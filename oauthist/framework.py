@@ -77,6 +77,33 @@ class Client(orm.TaggedAttrsModel):
             client_secret = orm.random_string(CLIENT_SECRET_LENGTH)
         self.attrs['client_secret'] = client_secret
 
+    def check_redirect_uri(self, redirect_uri):
+        """
+        Check redirect uri for correctness
+
+        Used by :class:`CodeRequest` and other class to validate and normalize
+        the redirect URI, provided by client.
+
+        Validation rules are following
+
+        1. If redirect uri isn't provided, but there's only one in database
+           return URI from database
+        2. If redirect uri isn't provided, and there is more than on url
+           in database, raise missing_redirect_uri exception
+        3. If redirect uri is provided, then check, whether it matches the
+           contents of the database. If the match is found, then return the
+           uri, otherwise raise invalid_redirect_uri exception
+        """
+        if not redirect_uri:
+            if len(self.redirect_urls) == 1:
+                return self.redirect_urls[0]
+            else:
+                raise OauthistValidationError('missing_redirect_uri')
+
+        if redirect_uri not in self.redirect_urls:
+            raise OauthistValidationError('invalid_redirect_uri')
+        return redirect_uri
+
 
 class CodeRequest(orm.Model):
 
@@ -137,13 +164,7 @@ class CodeRequest(orm.Model):
         self.client = Client.objects.get(client_id)
         if not self.client:
             raise OauthistValidationError('invalid_client_id')
-        redirect_uri = self.attrs.get('redirect_uri')
-        if not redirect_uri and len(self.client.redirect_urls) == 1:
-            redirect_uri = self.client.redirect_urls[0]
-        if not redirect_uri:
-            raise OauthistValidationError('missing_redirect_uri')
-        if redirect_uri not in self.client.redirect_urls:
-            raise OauthistValidationError('invalid_redirect_uri')
+        redirect_uri = self.client.check_redirect_uri(self.attrs.get('redirect_uri'))
         self.attrs['redirect_uri'] = redirect_uri
 
     def is_invalid(self):
