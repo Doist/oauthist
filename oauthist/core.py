@@ -51,9 +51,6 @@ def configure(redis_client=None, prefix=None, scopes=None, authorization_code_ti
     orm.configure(framework.redis, framework.prefix)
 
 
-class CodeExchangeRequest(orm.Model):
-    pass
-
 #--- utility functions
 
 def full_cleanup():

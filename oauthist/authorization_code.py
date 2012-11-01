@@ -11,10 +11,9 @@ class CodeRequest(object):
     @classmethod
     def from_werkzeug(cls, request):
         """
-        Create CodeRequest object from Wekzeug/Flask request object
+        Create CodeRequest object from Werkzeug/Flask request object
 
-        Can raise OauthistValidationError 'invalid_response_type' if
-        response_type GET argument is not equal to "code".
+        :rtype CodeRequest:
         """
         response_type = request.args.get('response_type')
         client_id = request.args.get('client_id')
