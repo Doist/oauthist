@@ -162,26 +162,25 @@ The procedure of issuing of the secret code works passes following steps.
    of checking.
 
 3. If everything looks good from the point of view of the framework, the
-   application programmer should save this request and ask user for permission
-   to authorize this request. It is important to not that while the code request
+   application programmer should create the code and ask user for permission
+   to authorize it. It is important to not that although the code
    is saved, it doesn't mean at all that the code can be exchanged for access
    token. Usually you store the code request along with user id attached:
 
    .. code-block:: python
 
-        code_request.set(user_id=USER_ID)
-        code_request.save()
+        code = code_request.save_code(user_id=USER_ID)
 
 
 4. Then server displays the confirmation window to the user, and depending on
-   user's answer the state of the request can change itself to "accepted" or to
-   "declined". When request is accepted, a new property "accepted" is defined and
-   set to True, when it is declined, the request is simply removed from the
+   user's answer the state of the code can change itself to "accepted" or to
+   "declined". When code is accepted, a new property "accepted" is defined and
+   set to True, when it is declined, the code is simply removed from the
    database.
 
-   Usually handling of user input is provided in separate window.
-   To mark request as accepted, you invoke :meth:`code_request.accept`,
-   otherwise you run :meth:`code_request.decline`
+   Usually handling of user input is provided in separate HTTP request.
+   To mark request as accepted, you invoke :meth:`code.accept`,
+   otherwise you run :meth:`code.decline`
 
 That's how the request handling can be performed in to views of Flask
 framework:
@@ -198,30 +197,25 @@ framework:
             return redirect(code_req.get_redirect())
 
         # at this point we save the code request and wait for user confirmation
-        code_req.set(user_id=USER_ID)
-        code_req.save()
-        return render_template('server/auth_endpt_confirmation.html', code_req=code_req)
+        code = code_req.save(user_id=USER_ID)
+        return render_template('server/auth_endpt_confirmation.html', code=code,
+                                client=code_req.client)
 
 
     @app.route('/auth_endpt/confirmation')
     def auth_endpt_confirmation():
         # get some information from the form
-        code_req_id = ...  # it can be passed between handlers in a hidden for field
+        code_id = ...  # it can be passed between handlers in a hidden for field
                            # or saved in session
         # search for code request
-        code_req = CodeRequest.objects.get(code_req_id)
+        code = Code.objects.get(code_id)
         if user_declined_access():
-            code_req.decline(reason='access_denied')
-            return redirect(code_req.get_redirect())
+            return redirect(code.decline())
         else:
-            code_req.accept()
-            return redirect(code_req.get_redirect())
+            return redirect(code.accept())
 
-See `4.1.2.1 Error Response`_ section of RFC for more variants of `reason`
+See `4.1.2.1 Error Response`_ section of RFC for more variants of `error`
 argument of :func:`decline`.
-
-If user is turns out to be logged in, and confirmation received,
-you call the :func:`get_redirect` function.
 
 .. _Werkzeug: http://werkzeug.pocoo.org/
 .. _4.1.2.1 Error Response: http://tools.ietf.org/html/rfc6749#section-4.1.2.1
