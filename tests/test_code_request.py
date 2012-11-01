@@ -15,14 +15,14 @@ def test_from_werkzeug(web_client):
                                          scope='user_ro user_rw',
                                          state='1234'))
     req = oauthist.CodeRequest.from_werkzeug(request)
-    req.save()
-    assert req.client_id == web_client._id
-    assert req.redirect_uri == WEB_CALLBACK
-    assert req.scope == 'user_ro user_rw'
-    assert req.state == '1234'
     assert not req.is_broken()
     assert not req.is_invalid()
 
+    code = req.save_code()
+    assert code.client_id == web_client._id
+    assert code.redirect_uri == WEB_CALLBACK
+    assert code.scope == 'user_ro user_rw'
+    assert code.state == '1234'
 
 #--- Test valid CodeRequest
 
@@ -96,11 +96,13 @@ def test_scope_invalid(web_client):
 def test_scope_invalid_get_redirect_with_state(web_client):
     req = oauthist.CodeRequest(client_id=web_client._id, state='abcd',
                                scope='user_ro invalid_scope')
+    assert req.is_invalid()
     assert req.get_redirect() == 'http://web.example.com/oauth2cb?error=invalid_scope&state=abcd'
 
 def test_scope_invalid_get_redirect_without_state(web_client):
     req = oauthist.CodeRequest(client_id=web_client._id,
                                scope='user_ro invalid_scope')
+    assert req.is_invalid()
     assert req.get_redirect() == 'http://web.example.com/oauth2cb?error=invalid_scope'
 
 
@@ -109,6 +111,7 @@ def test_scope_invalid_get_redirect_to_complex_uri(web_client):
     web_client.save()
     req = oauthist.CodeRequest(client_id=web_client._id, state='abcd',
                                scope='user_ro invalid_scope')
+    assert req.is_invalid()
     assert req.get_redirect() == ('http://web.example.com/router.php?'
                                   'page=oauth2cb&error=invalid_scope&state=abcd#foo')
 
@@ -120,6 +123,6 @@ def test_is_valid(web_client):
                                redirect_uri=WEB_CALLBACK,
                                state='1234',
                                scope='user_ro user_rw')
-    req.save()
+    code = req.save_code(foo='bar')
     assert req.get_redirect() == ('http://web.example.com/oauth2cb?code=%s&'
-                                  'state=1234' % req._id)
+                                  'state=1234' % code._id)
