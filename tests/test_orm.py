@@ -193,3 +193,11 @@ def test_expire_removes_object_do_not_expire(user):
         random_true.return_value = False
         assert User.objects.get(user._id) is None
         assert list(User.objects.all()) == []
+
+
+def test_ttl(user):
+    assert user.ttl() is None
+    user.set_expire(10)
+    assert user.ttl() > 0
+    user.set_expire(datetime.datetime(2012, 1, 1)) # in the past
+    assert user.ttl() == 0
