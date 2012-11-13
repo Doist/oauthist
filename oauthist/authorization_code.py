@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from oauthist import orm
+import ormist
 from oauthist.errors import OauthistValidationError, OauthistRuntimeError
 from oauthist.client import Client
 from oauthist.core import framework
@@ -161,7 +161,7 @@ class CodeRequest(object):
         return self.code
 
 
-class Code(orm.Model):
+class Code(ormist.Model):
 
 
     def get_redirect(self, error=None):

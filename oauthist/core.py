@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
-import redis as redis
-from oauthist import orm
-from oauthist.errors import OauthistValidationError
-from oauthist.validators import check_url
-from oauthist.utils import add_arguments
+import redis
+import ormist
 
 CLIENT_ID_LENGTH = 16
 CLIENT_SECRET_LENGTH = 64
@@ -48,7 +45,7 @@ def configure(redis_client=None, prefix=None, scopes=None, authorization_code_ti
     framework.scopes = scopes
     framework.authorization_code_timeout = authorization_code_timeout
     framework.access_token_timeout = access_token_timeout
-    orm.configure(framework.redis, framework.prefix)
+    ormist.configure(framework.redis, framework.prefix)
 
 
 #--- utility functions

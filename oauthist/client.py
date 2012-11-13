@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-from oauthist import orm
+import ormist
 from oauthist.utils import check_url
 from oauthist.errors import OauthistValidationError
 from oauthist.core import CLIENT_ID_LENGTH, CLIENT_TYPES, CONFIDENTIAL_CLIENTS, CLIENT_SECRET_LENGTH
 
 
 
-class Client(orm.TaggedAttrsModel):
+class Client(ormist.TaggedAttrsModel):
 
     id_length = CLIENT_ID_LENGTH
     # we don't want to add the attribute for redirect_urls and client_secret
-    objects = orm.TaggedAttrsModelManager(['redirect_urls', 'client_secret', ])
+    objects = ormist.TaggedAttrsModelManager(['redirect_urls', 'client_secret', ])
 
     def validate(self):
         # check client type
@@ -29,7 +29,7 @@ class Client(orm.TaggedAttrsModel):
         # check for client secret
         client_secret = self.attrs.get('client_secret')
         if not client_secret and client_type in CONFIDENTIAL_CLIENTS:
-            client_secret = orm.random_string(CLIENT_SECRET_LENGTH)
+            client_secret = ormist.random_string(CLIENT_SECRET_LENGTH)
         self.attrs['client_secret'] = client_secret
 
     def check_redirect_uri(self, redirect_uri):

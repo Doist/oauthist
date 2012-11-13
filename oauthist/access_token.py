@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
-from oauthist import orm
+import ormist
 from oauthist.core import framework
 from oauthist.client import Client
 from oauthist.authorization_code import Code
@@ -109,7 +109,7 @@ class CodeExchangeRequest(object):
         return AccessTokenError(self.error)
 
 
-class AccessToken(orm.TaggedAttrsModel):
+class AccessToken(ormist.TaggedAttrsModel):
 
     id_length = 64
 

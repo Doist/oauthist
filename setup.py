@@ -21,13 +21,13 @@ setup(
     url = 'http://wedoist.com',
     packages = ['oauthist', ],
     long_description = read('README.rst'),
-    install_requires = ['redis', ],
+    install_requires = ['redis', 'ormist', ],
     classifiers = [
         'Development Status :: 4 - Beta',
         'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
         'Topic :: Internet',
         'Topic :: Software Development :: Libraries',
-        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: BSD License',
     ],
 )
