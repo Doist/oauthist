@@ -13,6 +13,14 @@ JSON_HEADERS =  {
 }
 
 class CodeExchangeRequest(object):
+    """
+    Request object aiming to exchange authorization code to access token.
+
+    As opposed to authorization code and access token, the code exchange
+    request is a transient object. Actually, it's a quite thin abstraction
+    around HTTP request object, which primary goal is to validate passed
+    arguments and issue an access token.
+    """
 
     @classmethod
     def from_werkzeug(cls, request):
@@ -33,6 +41,32 @@ class CodeExchangeRequest(object):
     def __init__(self, code=None, client_id=None, client_secret=None,
                  redirect_uri=None, state=None, expire=None,
                  grant_type='authorization_code'):
+        """
+        Constructor for code exchange request.
+
+        :param code: authorization code, obtained by the client with help of
+                     user
+        :type code: str
+        :param client_id: client id
+        :type client_id: str
+        :param client_secret: client secret, shared between server and client
+                              only
+        :type client_secret: str
+        :param redirect_uri: if while obtaining authorization code, client
+                             created a request with redirect uri, then this
+                             redirect uri must be passed here.
+                             Otherwise this field must be set to None
+        :type redirect_uri: str
+        :param state: if while obtaining authorization code, client issued a
+                      random "state" parameter, then it should be passed here.
+                      Otherwise this field myst be set to None
+        :type state: str
+        :expire: if you want to override default expiration timeout, defined in
+                 the framework, you can pass the value here. Value may be
+                 integer (seconds since now), timedelta or absulute datetime.
+                 ``None`` means "use ``framework.access_token_timeout``".
+        :type expire: int or datetime.timedelta or datetime.datetime
+        """
         self.code = code
         self.client_id = client_id
         self.client_secret = client_secret
@@ -50,7 +84,6 @@ class CodeExchangeRequest(object):
     def is_invalid(self):
         """
         Return True, if access token request is invalid
-
         """
         try:
             self.check_invalid()
@@ -123,7 +156,6 @@ class AccessToken(ormist.TaggedAttrsModel):
             'access_token': self._id,
             'token_type': 'bearer',
             'scope': self.scope,
-
         }
         expires_in = self.ttl()
         if expires_in is not None:
