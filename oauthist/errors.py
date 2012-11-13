@@ -17,3 +17,6 @@ class ClientNotFoundError(OauthistError): pass
 
 # validation errors
 class OauthistValidationError(OauthistError, ValueError): pass
+
+# invalid access token
+class InvalidAccessToken(OauthistError): pass

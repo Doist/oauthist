@@ -39,7 +39,7 @@ def pytest_funcarg__native_client(request):
     return client
 
 
-def fake_werkzeug_request(args=None, form=None):
+def fake_werkzeug_request(args=None, form=None, headers=None):
     """
     Create fake request object
 
@@ -51,4 +51,5 @@ def fake_werkzeug_request(args=None, form=None):
     req = Request()
     req.form = form or {}
     req.args = args or {}
+    req.headers = headers or {}
     return req

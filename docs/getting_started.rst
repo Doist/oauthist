@@ -421,8 +421,17 @@ The way access tokens should be used is defined in the `Access Tokens Types`_
 chapter of RFC 6749.
 
 The framework supports Bearer Tokens (see `RFC 6750`_). According to the
-recommendation, the token can be passed in ``Access:`` HTTP header, in POST or
-GET request as a parameter.
+recommendation, the token can be passed in ``Authorization:`` HTTP header, in
+POST or GET request as a parameter.
+
+If you use Werkezeug-based framework, you may easily retrieve the token string
+from any of these source
+
+.. code-block:: python
+
+   token_string = oauthist.access_token_from_werkzeug(request)
+
+The function returns string or None, if token hasn't been found.
 
 Once you received the bearer token string, you must check if it is valid to your
 scope. If the token is valid, the :class:`AccessToken` object will be returned,
@@ -443,10 +452,13 @@ on behalf of it.
 
              try:
                  for scope in scopes:
-                 token = oauthist.check_access_token(token_string, scope)
+                    token = oauthist.check_access_token(token_string, scope)
              except oauthist.InvalidAccessToken as e:
                  # handle exception here
                  pass
+
+
+
 
 .. _Access Tokens Types: http://tools.ietf.org/html/rfc6749#section-7
 .. _RFC 6750: http://tools.ietf.org/html/rfc6750

@@ -4,7 +4,7 @@ import ormist
 from oauthist.core import framework
 from oauthist.client import Client
 from oauthist.authorization_code import Code
-from oauthist.errors import OauthistValidationError, OauthistRuntimeError
+from oauthist.errors import OauthistValidationError, OauthistRuntimeError, InvalidAccessToken
 
 JSON_HEADERS =  {
     'Content-Type': 'application/json;charset=UTF-8',
@@ -185,3 +185,74 @@ class AccessTokenError(object):
 
     def get_headers(self):
         return JSON_HEADERS
+
+
+def check_access_token(access_token, *scopes):
+    """
+    Check if access token is valid to get access to following list of scopes
+
+    If list of scopes is empty, then check if access token is valid at all
+    (can be used when the application doesn't use the concept of scopes).
+
+    :param access_token: access token string
+    :type access_token: str
+    :param \*scopes: list of scopes, which token must be valid for. Note that
+                     here the "OR"-logic is used. If one or more scope is
+                     defined, then the token must be valid for at least one
+                     scope in the list
+    :return: AccessToken instance
+    :rtype: AccessToken
+    :raise: InvalidAccessToken
+    """
+    token_object = AccessToken.objects.get(access_token)
+    if not token_object:
+        raise InvalidAccessToken()
+    if not scopes:
+        return token_object
+    token_scopes = set(token_object.scope.split())
+    required_scopes = set(scopes)
+    if required_scopes.intersection(token_scopes):
+        return token_object
+    raise InvalidAccessToken()
+
+
+def access_token_from_werkzeug(request):
+    """
+    Get access token string from Werkzeug request
+
+    According to specification, access token can be found in:
+
+    - authorization request header
+    - request body (urlencoded)
+    - request URI (as GET parameter)
+
+    Access token can be extracted from either of these sources, but if token will
+    be found more than in one resource, then, according to specification, server
+    return None, as if no access token is found.
+
+    :param request: Werkzeug request
+    :return: request token as a string or None
+    :rtype: str
+    """
+    header_token = request.headers.get('Authorization')
+    if header_token:
+        # check for header token, if defined
+        header_token_chunks = header_token.split(' ', 1)
+        if len(header_token_chunks) != 2:
+            return None
+        if header_token_chunks[0] != 'Bearer':
+            return None
+        header_token = header_token_chunks[1]
+
+    form_token = request.form.get('access_token')
+    args_token = request.args.get('access_token')
+
+    active_token = None
+    for token in (header_token, form_token, args_token):
+        if token:
+            if active_token:  # more than one token defined
+                return None
+            else:
+                active_token = token
+
+    return active_token
