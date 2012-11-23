@@ -8,7 +8,7 @@ NATIVE_CALLBACK = 'http://native.example.com/oauth2cb'
 
 def setup_module():
     scopes = ['user_ro', 'user_rw', 'projects_ro', 'projects_rw']
-    oauthist.configure(prefix='tests', scopes=scopes)
+    oauthist.configure(scopes=scopes)
 
 
 def teardown_function(func):

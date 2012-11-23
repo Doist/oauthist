@@ -45,7 +45,7 @@ class CodeRequest(object):
         """
         self.response_type = response_type
         self.client_id = client_id
-        self.client = Client.objects.get(client_id)
+        self.client = Client.objects.get(client_id, system=framework.ormist_system)
         self.redirect_uri = redirect_uri
         self.expire = expire or framework.authorization_code_timeout
         self.scope = scope
@@ -157,7 +157,7 @@ class CodeRequest(object):
                       scope=self.scope, state=self.state)
         self.code.set(**attrs)
         self.code.set_expire(self.expire)
-        self.code.save()
+        self.code.save(system=framework.ormist_system)
         return self.code
 
 
@@ -180,7 +180,7 @@ class Code(ormist.Model):
         If everything is okay, return success redirect with the code
         """
         self.set(accepted=True)
-        self.save()
+        self.save(system=framework.ormist_system)
         return self.get_success_redirect()
 
     def get_success_redirect(self):

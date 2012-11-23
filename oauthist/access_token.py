@@ -75,8 +75,8 @@ class CodeExchangeRequest(object):
         self.grant_type = grant_type
         self.expire = expire or framework.access_token_timeout
 
-        self.client_obj = Client.objects.get(self.client_id)
-        self.code_obj = Code.objects.get(self.code)
+        self.client_obj = Client.objects.get(self.client_id, system=framework.ormist_system)
+        self.code_obj = Code.objects.get(self.code, system=framework.ormist_system)
         self.error = None
         self.error_description = None
         self.access_token = None
@@ -131,7 +131,7 @@ class CodeExchangeRequest(object):
         code_attrs.update(attrs)
         self.access_token.set(**code_attrs)
         self.access_token.set_expire(self.expire)
-        self.access_token.save()
+        self.access_token.save(system=framework.ormist_system)
         return self.access_token
 
     def get_error(self):
@@ -204,7 +204,8 @@ def check_access_token(access_token, *scopes):
     :rtype: AccessToken
     :raise: InvalidAccessToken
     """
-    token_object = AccessToken.objects.get(access_token)
+    token_object = AccessToken.objects.get(access_token,
+                                           system=framework.ormist_system)
     if not token_object:
         raise InvalidAccessToken()
     if not scopes:
