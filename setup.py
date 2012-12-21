@@ -21,7 +21,13 @@ setup(
     url = 'http://wedoist.com',
     packages = ['oauthist', ],
     long_description = read('README.rst'),
-    install_requires = ['redis', 'ormist', ],
+    install_requires = ['redis', 'ormist>=0.1,==dev', ],
+    # see here for more details on syntax
+    # https://groups.google.com/d/msg/python-virtualenv/CwcGLlecT0o/4_JClCuYSjEJ
+    # Version must be defined explicitly
+    dependency_links = [
+        'http://github.com/Doist/ormist/tarball/master#egg=ormist-dev',
+    ],
     classifiers = [
         'Development Status :: 4 - Beta',
         'Programming Language :: Python :: 2.6',

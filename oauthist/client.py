@@ -3,7 +3,7 @@ import ormist
 from oauthist.utils import check_url
 from oauthist.errors import OauthistValidationError
 from oauthist.core import CLIENT_ID_LENGTH, CLIENT_TYPES, CONFIDENTIAL_CLIENTS, CLIENT_SECRET_LENGTH
-
+from oauthist.compat import text, binary
 
 
 class Client(ormist.TaggedAttrsModel):
@@ -21,7 +21,7 @@ class Client(ormist.TaggedAttrsModel):
         redirect_urls  = self.attrs.get('redirect_urls')
         if not redirect_urls:
             raise OauthistValidationError('redirect_urls is not set')
-        if isinstance(redirect_urls, basestring):
+        if isinstance(redirect_urls, (text, binary)):
             redirect_urls = [redirect_urls, ]
         for url in redirect_urls:
             check_url(url)

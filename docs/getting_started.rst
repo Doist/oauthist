@@ -305,7 +305,7 @@ request before issuing the code, but usually it's not required.
 Refreshing access token
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-OAuth2 server intentionally doesn't issue refresh tokens, as we strive to keep
+oauthist framework intentionally doesn't issue refresh tokens, as we strive to keep
 things as simple as possible for us and for clients, and the security
 benefits introducing with access codes seem questionable.
 
@@ -354,7 +354,7 @@ and return the HTTP response redirect with the access token.
    'http://...#code=<...>&state=<...>'
 
 
-If you want to return error
+If you need to return error
 
 .. code-block:: python
 

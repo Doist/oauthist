@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
-import urlparse
-import urllib
-
+from oauthist.compat import urlparse, urlencode, parse_qsl, urlunparse
 from oauthist.errors import OauthistValidationError
 
 def add_arguments(url, args):
@@ -16,11 +14,11 @@ def add_arguments(url, args):
        >>> add_arguments('http://example.com/foo.php?1=2', [(3, 4)])
        'http://example.com/foo.php?1=2&3=4'
     """
-    chunks = list(urlparse.urlparse(url))
-    qs = urlparse.parse_qsl(chunks[4])
+    chunks = list(urlparse(url))
+    qs = parse_qsl(chunks[4])
     qs += args
-    chunks[4] = urllib.urlencode(qs)
-    return urlparse.urlunparse(chunks)
+    chunks[4] = urlencode(qs)
+    return urlunparse(chunks)
 
 
 def check_url(url):
