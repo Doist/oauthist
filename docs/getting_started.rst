@@ -429,9 +429,10 @@ from any of these source
 
 .. code-block:: python
 
-   token_string = oauthist.access_token_from_werkzeug(request)
+   request = oauthist.ProtectedResourceRequest(http_request)
 
-The function returns string or None, if token hasn't been found.
+The function returns object with field :param:`access_token`, which will be set
+to `None` if token hasn't been found.
 
 Once you received the bearer token string, you must check if it is valid to your
 scope. If the token is valid, the :class:`AccessToken` object will be returned,
@@ -439,7 +440,7 @@ otherwise :class:`InvalidAccessToken` exception will be raised.
 
 .. code-block:: python
 
-   >>> token = oauthist.verify_access_token(token_string, 'scopeA', 'scopeA-B')
+   >>> token = oauthist.ProtectedResourceRequest(access_token_string).verify_access_token('scopeA', 'scopeA-B')
 
 Token has :attr:`user_id` field which you could use then to perform actions
 on behalf of it.
@@ -452,7 +453,7 @@ on behalf of it.
 
              try:
                  for scope in scopes:
-                    token = oauthist.verify_access_token(token_string, scope)
+                    token = req.verify_access_token(scope)
              except oauthist.InvalidAccessToken as e:
                  # handle exception here
                  pass
