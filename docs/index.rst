@@ -11,4 +11,5 @@ Contents:
    :maxdepth: 2
 
    getting_started
+   reference
    db_schema

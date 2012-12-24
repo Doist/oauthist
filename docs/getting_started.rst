@@ -439,7 +439,7 @@ otherwise :class:`InvalidAccessToken` exception will be raised.
 
 .. code-block:: python
 
-   >>> token = oauthist.check_access_token(token_string, 'scopeA', 'scopeA-B')
+   >>> token = oauthist.verify_access_token(token_string, 'scopeA', 'scopeA-B')
 
 Token has :attr:`user_id` field which you could use then to perform actions
 on behalf of it.
@@ -452,7 +452,7 @@ on behalf of it.
 
              try:
                  for scope in scopes:
-                    token = oauthist.check_access_token(token_string, scope)
+                    token = oauthist.verify_access_token(token_string, scope)
              except oauthist.InvalidAccessToken as e:
                  # handle exception here
                  pass

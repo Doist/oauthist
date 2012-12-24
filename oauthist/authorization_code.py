@@ -7,6 +7,26 @@ from oauthist.utils import add_arguments
 
 
 class CodeRequest(object):
+    """
+    A code request object.
+
+    Transient object, actually a thin wrapper around HTTP request, which only
+    goal is to extract data from request, validate them, and if everything is
+    good create a persistent :class:`Code` instance, save it to the database
+    and return to a client in HTTP response.
+
+    Code request has two methods to guide you to the right direction.
+
+    - :meth:`CodeRequest.is_broken` shows that the request is completely
+       broken and the most appropriate action here is just to display
+       HTML page with error code
+    - :meth:`CodeRequest.is_invalid` means that the request is invalid, but
+      it's safe to stick to OAuth2 flow and return user back to the URL defined
+      in the request to notify the application-initiator about the problem.
+
+    Code requests have limited lifetime (3600 seconds by default). You can change
+    this value with :func:`oauthist.configure`
+    """
 
     @classmethod
     def from_werkzeug(cls, request):
@@ -28,6 +48,8 @@ class CodeRequest(object):
                  scope=None, state=None, expire=None):
         """
         Create code request object
+
+        Instantiate object from your HTTP request
 
         :param response_type: response type string (from GET options). Must be "code"
         :param client_id: string with client id (from GET options)
@@ -114,14 +136,14 @@ class CodeRequest(object):
 
     def get_redirect(self, error=None):
         """
-        Return redirect.
+        Return redirect, as described in :rfc:`6749#4.1.2`
 
         If there is an code object, then proxy method invocation there.
 
         In no code defined (because request is invalid and you want to respond
         immediately), then return error response by itself
 
-        :param error: string with redirect code, as defined in RFC 6749
+        :param error: string with error
         :return: string containing fully composed absolute URL which user
                  should be redirected to
         """
@@ -162,9 +184,29 @@ class CodeRequest(object):
 
 
 class Code(ormist.Model):
+    """
+    Authorization code as defined in :rfc:`6749#1.3.1`
 
+    Persistent object, which is stored in database and returned to client via
+    HTTP. You probably should never create this object directly, but should use
+    :meth:`CodeRequest.save_code(...)` instead.
+
+    Saved with `save_code` object has at least following attributes. You can
+    pass more data to it, if you wish.
+
+    - :data:`client_id`: id of client, requested for the access
+    - :data:`redirect_uri`: redirect URI, passed in the HTTP request
+    - :data:`scope`: space separated list of scopes which this code is valid for.
+    - :data:`state`: random value, passed from client
+    """
 
     def get_redirect(self, error=None):
+        """
+        Return URL to redirect client to
+
+        :param error: error message
+        :return: string with redirect
+        """
         if error:
             return self.get_error_redirect(error=error)
         else:
@@ -184,6 +226,9 @@ class Code(ormist.Model):
         return self.get_success_redirect()
 
     def get_success_redirect(self):
+        """
+        :return: string with URL where the client should be redirected to
+        """
         redirect_uri = self.attrs['redirect_uri']
         state = self.attrs.get('state')
 
@@ -199,14 +244,23 @@ class Code(ormist.Model):
 
         Behind the scenes it removes the object completely from the Redis.
 
-        You may pass :var:`error` argument to the function to denote that the
-        request is rejected by user. Usually, the most used argument here will
-        be the "access_denied" value.
+        :attr error: you may pass it to the function to denote that the
+                     request is rejected by user. Usually, the most used
+                     argument here will be the "access_denied" value.
+
+        :return: redirect URL where client should be redirected to
         """
         self.delete()
         return self.get_error_redirect(error=error)
 
     def get_error_redirect(self, error='access_denied'):
+        """
+        Construct and return URL with error message.
+
+        :param error: error message to return
+        :return: complete error URL, containing among others correct state
+                 parameter.
+        """
         redirect_uri = self.attrs['redirect_uri']
         state = self.attrs.get('state')
         args = [('error', error), ]

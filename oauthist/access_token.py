@@ -16,10 +16,9 @@ class CodeExchangeRequest(object):
     """
     Request object aiming to exchange authorization code to access token.
 
-    As opposed to authorization code and access token, the code exchange
-    request is a transient object. Actually, it's a quite thin abstraction
-    around HTTP request object, which primary goal is to validate passed
-    arguments and issue an access token.
+    Transient object,  a it's a quite thin wrapper around HTTP request object,
+    which primary goal is to validate passed arguments (we expect the
+    authorization code id) and issue an access token.
     """
 
     @classmethod
@@ -120,10 +119,19 @@ class CodeExchangeRequest(object):
             raise OauthistValidationError('invalid_grant')
 
     def exchange_for_token(self, **attrs):
+        """
+        Perform action "exchange code request for access token".
+
+        During this procedure a new access token is created and returned and
+        the code object is destroyed, therefore it's impossible to exchange
+        the same authentication code for token twice or more.
+
+        :rtype: AccessToken
+        """
         self.check_invalid()
         if not self.access_token:
             self.access_token = AccessToken()
-        # we have to copy all attributes from the code obj, besides
+        # we have to copy all attributes from the code obj, except
         # those which we don't need anymore
         code_attrs = self.code_obj.attrs.copy()
         for key in ('state', 'accepted', 'redirect_uri', 'expire'):
@@ -131,10 +139,17 @@ class CodeExchangeRequest(object):
         code_attrs.update(attrs)
         self.access_token.set(**code_attrs)
         self.access_token.set_expire(self.expire)
+        self.code_obj.delete()  # delete authorization code
+        self.code_obj = None
         self.access_token.save(system=framework.ormist_system)
         return self.access_token
 
     def get_error(self):
+        """
+        Create and return AccessTokenError instance to pass to client via HTTP
+
+        :rtype AccessTokenError:
+        """
         if not self.error:
             raise OauthistRuntimeError('Error attribute is not defined, maybe '
                                        'you forgot to call '
@@ -143,15 +158,36 @@ class CodeExchangeRequest(object):
 
 
 class AccessToken(ormist.TaggedAttrsModel):
+    """
+    Access token object.
+
+    Persistent object, used to manage clients' access to users' resources.
+
+    Usually you shouldn't create instances of :class:`AccessToken` directly,
+    using other methods instread.
+
+    For example, to create access token from code request, use
+    :meth:`CodeRequest.exchange_for_token`.
+
+    Access token may have limited lifetime, but by default they're "eternal".
+    You can change the lifetime value with :func:`oauthist.configure`
+    """
 
     id_length = 64
 
     def to_werkzeug_response(self):
+        """
+        Return Werkzeug/Flask response object to pass access token via HTTP
+        to client the most rightful way
+        """
         from werkzeug.wrappers import Response
         content = self.get_json_content()
         return Response(json.dumps(content), headers=self.get_headers())
 
     def get_json_content(self):
+        """
+        Return JSON content of the access token, as defined in :rfc:`6749#4.3.3`
+        """
         ret = {
             'access_token': self._id,
             'token_type': 'bearer',
@@ -163,31 +199,53 @@ class AccessToken(ormist.TaggedAttrsModel):
         return ret
 
     def get_headers(self):
+        """
+        Return the dict with headers, according to :rfc:`6749#4.3.3`
+        (define content-type, prevent caching)
+        """
         return JSON_HEADERS
 
 
 class AccessTokenError(object):
+    """
+    Object representing error while issuing access token
+
+    Transient object, which is used to correctly form HTTP response with
+    error message
+    """
 
     def __init__(self, error):
         self.error = error
 
     def to_werkzeug_response(self):
+        """
+        Return Werkzeug/Flask response object to pass access token via HTTP
+        to client the most rightful way
+        """
         from werkzeug.wrappers import Response
         content = self.get_json_content()
         return Response(json.dumps(content), headers=self.get_headers(),
                         status=400)
 
     def get_json_content(self):
+        """
+        Return JSON content of the access token, as defined in :rfc:`6749#4.3.3`
+        """
         return {
             'error': self.error,
         }
 
 
     def get_headers(self):
+        """
+        Return the dict with headers, according to :rfc:`6749#4.3.3`
+        (define content-type, prevent caching)
+        """
         return JSON_HEADERS
 
 
-def check_access_token(access_token, *scopes):
+
+def verify_access_token(access_token, *scopes):
     """
     Check if access token is valid to get access to following list of scopes
 
