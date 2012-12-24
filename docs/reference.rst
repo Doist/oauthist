@@ -28,3 +28,9 @@ Working with access tokens
 
 .. autoclass:: oauthist.AccessTokenError
    :members:
+
+Accessing protected resources
+-----------------------------
+
+.. autoclass:: oauthist.ProtectedResourceRequest
+   :members:
