@@ -1,0 +1,19 @@
+{% extends "server/base.html" %}
+{% block content %}
+    Client "{{ client.name }}" wants to get access to some of your
+    personal data on this server.
+    <ul>
+    {% for sc in code.scope.strip().split() %}
+        <li>{{ sc }}</li>
+    {% endfor %}
+    </ul>
+    <form method="POST" action="/authorize/confirmation">
+        <input type="hidden" name="code" value="{{  code._id }}">
+        {# certainly, this must be unique for every user or every request #}
+        <input type="hidden" name="_csrf_token" value="random-value">
+        {# accept/decline buttons #}
+        <button type="submit" name="resolution" value="accept">Accept</button>
+        <button type="submit" name="resolution" value="decline">Decline</button>
+        <button type="submit" name="resolution" value="decide_later">Decide later (failure test)</button>
+    </form>
+{% endblock %}

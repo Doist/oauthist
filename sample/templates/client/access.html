@@ -1,0 +1,6 @@
+{% extends "client/base.html" %}
+{% block content %}
+    I made request to URL <strong>{{ url }}</strong> and got following response:
+
+    <pre><code>{{ response.text }}</code></pre>
+{% endblock %}
