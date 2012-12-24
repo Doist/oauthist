@@ -442,9 +442,6 @@ otherwise :class:`InvalidAccessToken` exception will be raised.
 
    >>> token = oauthist.ProtectedResourceRequest(access_token_string).verify_access_token('scopeA', 'scopeA-B')
 
-Token has :attr:`user_id` field which you could use then to perform actions
-on behalf of it.
-
 .. note:: The successful response will be returned, if token is valid **either**
           for 'scopeA' **or** 'scopeA-B'. If for some reasons you want to ensure
           that token is valid for **both** scopes, use cycle
@@ -459,6 +456,16 @@ on behalf of it.
                  pass
 
 
+**How to identify the user then?**
+
+As you may remember, when you save a :class:`Code` (Authorization code) instance
+with :meth:`CodeRequest.save_code(...)`, you may pass there as much extra
+attributes, as you want, including `user_id`, for example.
+
+Then, when you call :meth:`CodeExchangeRequest.exchange_for_token`, all these
+attributes are copied to the :class:`AccessToken` instance. Therefore, token
+you receive will contain all required extra fields, which you can use to show
+user's data.
 
 
 .. _Access Tokens Types: http://tools.ietf.org/html/rfc6749#section-7
