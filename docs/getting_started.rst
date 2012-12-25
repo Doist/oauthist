@@ -234,23 +234,31 @@ Create the code exchange request
 
 .. code-block:: python
 
-   >>> req = oauthist.CodeExchangeRequest(client_id='...',
-                                           client_secret='...',
-                                           redirect_uri='...',
-                                           code='...')
+   req = oauthist.CodeExchangeRequest(client_id='...',
+                                      client_secret='...',
+                                      redirect_uri='...',
+                                      code='...')
 
 Similarly, if you're a lucky `Werkzeug`_ user, you can create the object
 by its Request.
 
 .. code-block:: python
 
-   >>> req = oauthist.CodeExchangeRequest.from_werkzeug(request)
+    req = oauthist.CodeExchangeRequest.from_werkzeug(request)
+
+Verify, is request is valid.
+
+.. code-block:: python
+
+    if req.is_invalid():
+        return req.get_error().to_werkzeug_response()
+
 
 Then do exchange it for access token
 
 .. code-block:: python
 
-   >>> resp = req.exchange_for_token()
+   access_token = req.exchange_for_token()
 
 
 According to the section `Issuing an Access Token`_ of the RFC 6749, response
@@ -285,22 +293,6 @@ to use them to build the response of your framework.
    >>> resp.get_body()
    '{...}'
 
-
-Response can be failed. For example, if no such code found. You can validate the
-request before issuing the code, but usually it's not required.
-
-.. code-block:: python
-
-
-   >>> req.is_valid()
-   False
-   >>> resp = req.exchange_for_token()
-   >>> resp.get_code()
-   400
-   >>> resp.succeeded
-   False
-   >>> resp.failed
-   True
 
 Refreshing access token
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -378,39 +370,61 @@ Technically, this kind of grant is nothing more but a "shortcut" of the server
 side flow, but here Client doesn't ask User to provide the code, and just sends
 "bare" user's credentials (username and password) to Server instead.
 
-It's up to you to check whether username and password are valid, the framework
-provides convenient objects and methods to extract data and to build,
-store and return the access key.
+To check whether username and password, provided by the client, are valid, you
+should write a function.
+
+- The function accepts two arguments: username and password
+- Function must return `None`, if user not found, or user's password doesn't
+  match the one provided by the client.
+- Function must return dict (the dict may be empty), to denote that user is
+  valid. The contents of the dict will be written to the access token, returned
+  by the client.
+- Function must be passed as an argument to :class:`PasswordExchangeRequest`
+  constructor
+
+Trivial hypothetical example
+
+.. code-block:: python
+
+    def verify_requisites(username, password):
+        user = User.objects.get(username=username, password=password)
+        if user is None:
+            return None
+        else:
+            return {'user_id': user.id}
 
 Create the code exchange request
 
 .. code-block:: python
 
-   >>> req = oauthist.PasswordExchangeRequest(username='...',
-                                               password='...',
-                                               client_id='...',
-                                               client_secret='...',
-                                               scope='...')
+   req = oauthist.PasswordExchangeRequest(username='...',
+                                          password='...',
+                                          client_id='...',
+                                          client_secret='...',
+                                          scope='...',
+                                          verify_requisites=verify_requisites)
 
 
 Parameters `client_id` and `client_secret` are required for private client;
 as `client_secret` doesn't exist for public client, there is nothing to pass
 here; and finally, `client_id` for public client is optional.
 
-Then you must check the username and password, and exchange the request for
-token or return the error response.
+Additionally, there are two optional boolean flags, altering the behavior of the
+request object: `client_required` -- forbid "anonymous" clients, and
+`client_secret_required` -- forbid public (in terms of OAuth specification)
+clients.
 
-Below is a sample which may be used in Django code (mind
-:class:`User.DoesNotExist` exception though).
+Verification of the request and issuing of the code is provided the same way
+as for :class:`CodeExchangeRequest`. Below is a Flask-based example
 
 .. code-block:: python
 
-   >>> user = User.objects.get(username=req.username)
-   >>> if user.check_password(req.password):
-   ...     resp = req.exchange_for_token(user_id=user.id)
-   ... else:
-   ...     resp = req.get_error_response('invalid_client')
-
+    req = PasswordExchangeRequest.from_werkzeug(request, verify_requisites)
+    if req.is_invalid():
+        return req.get_error().to_werkzeug_response()
+    else:
+        access_token = req.exchange_for_token()
+        return access_token.to_werkzeug_response()
 
 .. _getting_started_verifying_requests:
 
@@ -431,7 +445,7 @@ from any of these source
 
    request = oauthist.ProtectedResourceRequest(http_request)
 
-The function returns object with field :param:`access_token`, which will be set
+The function returns object with field :attr:`access_token`, which will be set
 to `None` if token hasn't been found.
 
 Once you received the bearer token string, you must check if it is valid to your

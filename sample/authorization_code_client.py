@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+Sample web-application (OAuth2 client), following authorization code grant flow
+"""
 import sys
 import random
 import requests
@@ -32,7 +35,7 @@ def index():
     oauth_state = str(random.randint(0, sys.maxint))
     args = {
         'response_type': 'code',
-        'client_id': '1234',
+        'client_id': CLIENT_ID,
         'redirect_uri': REDIRECT_URLS[0],
         'scope': ' '.join(OAUTHIST_SCOPES),
         'state': oauth_state,
@@ -96,9 +99,9 @@ def access():
 
     We make direct HTTP request to server API endpoint. Oauth protocol doesn't
     specify neither the address of the endpoint, nor the format of returning
-    data, all it does is define the way how access token should be passed to
+    data, all it does is defines the way how access token should be passed to
     the server (either in GET or POST, or in Authorization header). Here we
-    send the reqtest with access token in GET, and expect JSON response from
+    send the request with access token in GET, and expect JSON response from
     the server.
     """
     access_token = session.get('access_token')
@@ -109,4 +112,3 @@ def access():
 
 if __name__ == '__main__':
     app.run(port=5001, debug=True, host='0.0.0.0')
-

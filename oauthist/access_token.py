@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+from oauthist import CONFIDENTIAL_CLIENTS
 import ormist
 from oauthist.core import framework
 from oauthist.client import Client
@@ -12,7 +13,42 @@ JSON_HEADERS =  {
     'Pragma': 'no-cache',
 }
 
-class CodeExchangeRequest(object):
+
+class GenericAccessTokenRequest(object):
+    """
+    Generic class to contain common code for different types of AccessToken
+    requests. Represents transient objects.
+
+    You shouldn't use this object directly, use their descendants,
+    :class:`CodeExchangeRequest` and :class:`PasswordExchangeRequest` instead.
+    """
+
+    def is_invalid(self):
+        """
+        Return True if request is invalid. Leverages :meth:`check_invalid`
+        """
+        try:
+            self.check_invalid()
+        except OauthistValidationError as e:
+            self.error = str(e)
+            return True
+        else:
+            return False
+
+    def get_error(self):
+        """
+        Create and return AccessTokenError instance to pass to client via HTTP
+
+        :rtype AccessTokenError:
+        """
+        if not self.error:
+            raise OauthistRuntimeError('Error attribute is not defined, maybe '
+                                       'you forgot to call '
+                                       'CodeExchangeRequest.is_invalid()')
+        return AccessTokenError(self.error)
+
+
+class CodeExchangeRequest(GenericAccessTokenRequest):
     """
     Request object aiming to exchange authorization code to access token.
 
@@ -46,21 +82,25 @@ class CodeExchangeRequest(object):
         :param code: authorization code, obtained by the client with help of
                      user
         :type code: str
+
         :param client_id: client id
         :type client_id: str
+
         :param client_secret: client secret, shared between server and client
-                              only
         :type client_secret: str
+
         :param redirect_uri: if while obtaining authorization code, client
                              created a request with redirect uri, then this
                              redirect uri must be passed here.
                              Otherwise this field must be set to None
         :type redirect_uri: str
+
         :param state: if while obtaining authorization code, client issued a
                       random "state" parameter, then it should be passed here.
                       Otherwise this field myst be set to None
         :type state: str
-        :expire: if you want to override default expiration timeout, defined in
+
+        :param expire: if you want to override default expiration timeout, defined in
                  the framework, you can pass the value here. Value may be
                  integer (seconds since now), timedelta or absulute datetime.
                  ``None`` means "use ``framework.access_token_timeout``".
@@ -79,18 +119,6 @@ class CodeExchangeRequest(object):
         self.error = None
         self.error_description = None
         self.access_token = None
-
-    def is_invalid(self):
-        """
-        Return True, if access token request is invalid
-        """
-        try:
-            self.check_invalid()
-        except OauthistValidationError as e:
-            self.error = str(e)
-            return True
-        else:
-            return False
 
     def check_invalid(self):
         if self.grant_type != 'authorization_code':
@@ -144,17 +172,162 @@ class CodeExchangeRequest(object):
         self.access_token.save(system=framework.ormist_system)
         return self.access_token
 
-    def get_error(self):
-        """
-        Create and return AccessTokenError instance to pass to client via HTTP
 
-        :rtype AccessTokenError:
+class PasswordExchangeRequest(GenericAccessTokenRequest):
+    """
+    Request to exchange user requisites to access key.
+
+    Transient object which accepts HTTP request parameters and a callback to
+    verify requisites, and return AccessToken or AccessTokenError.
+
+    Implement Resource Owner Password Credentials Grant flow (see :rfc:`6749#4.3`)
+    """
+
+
+    @classmethod
+    def from_werkzeug(cls, request, verify_requisites, client_required=True,
+                      client_secret_required=True):
         """
-        if not self.error:
-            raise OauthistRuntimeError('Error attribute is not defined, maybe '
-                                       'you forgot to call '
-                                       'CodeExchangeRequest.is_invalid()')
-        return AccessTokenError(self.error)
+        Create PasswordExchangeRequest instance from Werkzeug/Flask request
+
+        :param request: Werkzeug request object
+
+        :param verify_requisites: callable which will be used to verify username
+        and password, provided by the client. Must return dict to be associated
+        with request object, or None, if requisites are invalid
+
+        :param client_required: boolean flag, which is set to true, if client_id
+        and client_secret are required. In principle, password authentication
+        specification doesn't prevent "anonymous" requests for access token.
+        With this option you may enforce client authentication.
+
+        :param client_secret_required: by default "public clients" (user-agent
+        and native) don't have client secret. Nonetheless, according to
+        :rfc:`6749`, there is no explicit limitation to these types of clients.
+        With his option you may make all clients use their client secrets
+
+        :rtype PasswordExchangeRequest:
+        """
+        arg_names = ('username', 'password', 'scope', 'client_id',
+                     'client_secret', 'grant_type')
+        kwargs = {'verify_requisites': verify_requisites,
+                  'client_required': client_required,
+                  'client_secret_required': client_secret_required}
+        for arg_name in arg_names:
+            kwargs[arg_name] = request.form.get(arg_name)
+
+        return cls(**kwargs)
+
+
+    def __init__(self, username=None, password=None, scope=None, client_id=None,
+                 client_secret=None, grant_type='password',
+                 expire=None, verify_requisites=None, client_required=True,
+                 client_secret_required=True):
+        """
+        Constructor for password exchange request.
+
+        :param username: username, or another identifier of the user (user id or email)
+        :type username: str
+
+        :param password: user password
+        :type password: string
+
+        :param scope: space separated list of scopes
+        :type scope: string
+
+        :param client_id: client id
+        :type client_id: str
+
+        :param client_secret: client secret, shared between server and client
+        :type client_secret: str
+
+        :param expire: if you want to override default expiration timeout,
+        defined in the framework, you can pass the value here. Value may be
+        integer (seconds since now), timedelta or absulute datetime. ``None``
+        means "use ``framework.access_token_timeout``" .
+        :type expire: int or datetime.timedelta or datetime.datetime
+
+        :param verify_requisites: callable which will be used to verify username
+        and password, provided by the client. Must return dict to be associated
+        with request object, or None, if requisites are invalid
+
+        :param client_required: boolean flag, which is set to true, if client_id
+        and client_secret are required. In principle, password authentication
+        specification doesn't prevent "anonymous" requests for access token.
+        With this option you may enforce client authentication.
+
+        :param client_secret_required: by default "public clients" (user-agent
+        and native) don't have client secret. Nonetheless, according to
+        :rfc:`6749`, there is no explicit limitation to these types of clients.
+        With his option you may make all clients use their client secrets
+        """
+        self.username = username
+        self.password = password
+        self.scope = scope
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.grant_type = grant_type
+        self.expire = expire or framework.access_token_timeout
+        self.verify_requisites = verify_requisites
+        self.client_required = client_required
+        self.client_secret_required = client_secret_required
+
+        self.client_obj = Client.objects.get(self.client_id, system=framework.ormist_system)
+        self.error = None
+        self.error_description = None
+        self.access_token = None
+        self.user_attrs = None
+
+
+    def check_invalid(self):
+        if self.grant_type != 'password':
+            raise OauthistValidationError('invalid_request')
+        # check for missing values
+        if not self.username:
+            raise OauthistValidationError('invalid_request')
+        if not self.password:
+            raise OauthistValidationError('invalid_request')
+
+        # check for missing object
+        if self.client_required and not self.client_obj:
+            raise OauthistValidationError('invalid_client')
+
+        # check for client authentication
+        if self.client_obj:
+            client_secret_match = self.client_secret and self.client_obj.client_secret == self.client_secret
+            if not client_secret_match:
+                if self.client_secret_required:
+                    raise OauthistValidationError('invalid_client')
+                if self.client_obj.client_type in CONFIDENTIAL_CLIENTS:
+                    raise OauthistValidationError('invalid_client')
+
+        # check for user requisites
+        self.user_attrs = self.verify_requisites(self.username, self.password)
+        if self.user_attrs is None:  # invalid requisites
+            raise OauthistValidationError('invalid_grant')
+
+
+    def exchange_for_token(self, **attrs):
+        """
+        Perform action "exchange code request for access token".
+
+        During this procedure a new access token is created and returned and
+        the code object is destroyed, therefore it's impossible to exchange
+        the same authentication code for token twice or more.
+
+        :rtype: AccessToken
+        """
+        self.check_invalid()
+        if not self.access_token:
+            self.access_token = AccessToken()
+        token_attrs = dict(client_id=self.client_id, username=self.username,
+                           scope=self.scope)
+        token_attrs.update(**self.user_attrs)
+        token_attrs.update(**attrs)
+        self.access_token.set(**token_attrs)
+        self.access_token.set_expire(self.expire)
+        self.access_token.save(system=framework.ormist_system)
+        return self.access_token
 
 
 class AccessToken(ormist.TaggedAttrsModel):
@@ -327,4 +500,3 @@ class ProtectedResourceRequest(object):
         if required_scopes.intersection(token_scopes):
             return token_object
         raise InvalidAccessToken()
-

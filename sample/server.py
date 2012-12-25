@@ -2,7 +2,7 @@
 import json
 from flask import Flask, render_template, request, redirect, abort, make_response
 from oauthist import (configure, Client, CodeRequest, Code, CodeExchangeRequest,
-                      InvalidAccessToken, ProtectedResourceRequest)
+                      InvalidAccessToken, ProtectedResourceRequest, AccessTokenError, PasswordExchangeRequest)
 
 app = Flask(__name__)
 
@@ -17,8 +17,8 @@ JSON_CONTENT_TYPE = 'application/json; charset=UTF-8'
 
 # Fake users database
 USERS = {
-    '1': {'name': 'John Doe', 'email': 'jdoe@example.com'},
-    '2': {'name': 'Robert Roe', 'email': 'rroe@example.com'},
+    '1': {'name': 'John Doe', 'email': 'jdoe@example.com', 'password': 'foo'},
+    '2': {'name': 'Robert Roe', 'email': 'rroe@example.com', 'password': 'bar'},
 }
 
 def setup():
@@ -99,7 +99,30 @@ def access_token():
     The interaction is performed "behind the scenes" between client and server
     without any user involvement.
     """
-    req = CodeExchangeRequest.from_werkzeug(request)
+    def verify_requisites(username, password):
+        """
+        callback function verifying requisites and returning None or dict
+        which should be associated with AccessToken. In this particular
+        example we consider user_id as username
+        """
+        user = USERS.get(username)
+        if not user:
+            return None
+        if password != user['password']:
+            return None
+        ret = {'user_id': username}
+        ret.update(user)
+        return ret
+
+
+    grant_type = request.form.get('grant_type')
+    if grant_type == 'authorization_code':
+        req = CodeExchangeRequest.from_werkzeug(request)
+    elif grant_type == 'password':
+        req = PasswordExchangeRequest.from_werkzeug(request, verify_requisites)
+    else:
+        return AccessTokenError('invalid_request').to_werkzeug_response()
+
     if req.is_invalid():
         return req.get_error().to_werkzeug_response()
     access_token = req.exchange_for_token()
