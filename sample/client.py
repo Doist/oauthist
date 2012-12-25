@@ -18,6 +18,16 @@ OAUTHIST_SCOPES = ['user_data', 'document_list']
 
 @app.route('/')
 def index():
+    """
+    Index page.
+
+    We build an oauth2 authentication link (`link` variable). This link is a
+    starting point for code-based authentication process.
+
+    Note that we set up oauth2cb as the callback URL, there we receive the
+    response either with `code` parameter in GET args, or `error`
+    if user refuses to grant access.
+    """
     base_url = '%s/authorize' % SERVER_HOST
     oauth_state = str(random.randint(0, sys.maxint))
     args = {
@@ -35,6 +45,23 @@ def index():
 
 @app.route('/oauth2cb')
 def oauth2cb():
+    """
+    Callback page.
+
+    User will be redirected to this page after visiting server oauth2
+    authorization endpoint.
+
+    Note that prevent possible attacks, we compare the state argument with
+    the one we stored in session (see :func:`index` code).
+
+    If response contains "error" argument, we display the error. if the "code"
+    value is found we exchange it to access token (direct HTTP request to Oauth2
+    endpoint).
+
+    If access token is received, then we store it to user session and redirect
+    user to the /access URL, which tries to get access to user's data on the
+    server.
+    """
     state = request.args.get('state')
     session_state = session.pop('oauth_state', None)
     print session_state, state
@@ -65,7 +92,14 @@ def oauth2cb():
 @app.route('/access')
 def access():
     """
-    Get access to user's data
+    Get access to user's data.
+
+    We make direct HTTP request to server API endpoint. Oauth protocol doesn't
+    specify neither the address of the endpoint, nor the format of returning
+    data, all it does is define the way how access token should be passed to
+    the server (either in GET or POST, or in Authorization header). Here we
+    send the reqtest with access token in GET, and expect JSON response from
+    the server.
     """
     access_token = session.get('access_token')
     user_data_url = '%s/api/user_data' % SERVER_HOST
