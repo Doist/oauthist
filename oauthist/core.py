@@ -40,6 +40,12 @@ def configure(ormist_system='default', scopes=None, authorization_code_timeout=3
     framework.authorization_code_timeout = authorization_code_timeout
     framework.access_token_timeout = access_token_timeout
     framework.ormist_system = ormist_system
+    from oauthist.client import Client
+    from oauthist.authorization_code import Code
+    from oauthist.access_token import AccessToken
+    Client.objects.set_system(ormist_system)
+    Code.objects.set_system(ormist_system)
+    AccessToken.objects.set_system(ormist_system)
 
 
 #--- utility functions
@@ -50,5 +56,7 @@ def full_cleanup():
     """
     from oauthist.client import Client
     from oauthist.authorization_code import Code
-    Client.objects.full_cleanup(system=framework.ormist_system)
-    Code.objects.full_cleanup(system=framework.ormist_system)
+    from oauthist.access_token import AccessToken
+    Client.objects.full_cleanup()
+    Code.objects.full_cleanup()
+    AccessToken.objects.full_cleanup()

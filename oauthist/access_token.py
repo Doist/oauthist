@@ -114,8 +114,8 @@ class CodeExchangeRequest(GenericAccessTokenRequest):
         self.grant_type = grant_type
         self.expire = expire or framework.access_token_timeout
 
-        self.client_obj = Client.objects.get(self.client_id, system=framework.ormist_system)
-        self.code_obj = Code.objects.get(self.code, system=framework.ormist_system)
+        self.client_obj = Client.objects.get(self.client_id)
+        self.code_obj = Code.objects.get(self.code)
         self.error = None
         self.error_description = None
         self.access_token = None
@@ -169,7 +169,7 @@ class CodeExchangeRequest(GenericAccessTokenRequest):
         self.access_token.set_expire(self.expire)
         self.code_obj.delete()  # delete authorization code
         self.code_obj = None
-        self.access_token.save(system=framework.ormist_system)
+        self.access_token.save()
         return self.access_token
 
 
@@ -272,7 +272,7 @@ class PasswordExchangeRequest(GenericAccessTokenRequest):
         self.client_required = client_required
         self.client_secret_required = client_secret_required
 
-        self.client_obj = Client.objects.get(self.client_id, system=framework.ormist_system)
+        self.client_obj = Client.objects.get(self.client_id)
         self.error = None
         self.error_description = None
         self.access_token = None
@@ -326,7 +326,7 @@ class PasswordExchangeRequest(GenericAccessTokenRequest):
         token_attrs.update(**attrs)
         self.access_token.set(**token_attrs)
         self.access_token.set_expire(self.expire)
-        self.access_token.save(system=framework.ormist_system)
+        self.access_token.save()
         return self.access_token
 
 
@@ -490,7 +490,7 @@ class ProtectedResourceRequest(object):
         :raise: InvalidAccessToken
         """
         token_object = AccessToken.objects.get(self.access_token,
-                                               system=framework.ormist_system)
+                                               )
         if not token_object:
             raise InvalidAccessToken()
         if not scopes:
