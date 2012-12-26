@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
 from setuptools import setup
 
 def read(fname):
@@ -7,6 +8,10 @@ def read(fname):
         return open(os.path.join(os.path.dirname(__file__), fname)).read()
     except IOError:
         return ''
+
+requirements = ['redis', 'ormist>=0.1,==dev']
+if sys.version_info[0] == 2 and sys.version_info[1] < 7:
+    requirements.append('argparse')
 
 setup(
     name = 'oauthist',
@@ -19,9 +24,10 @@ setup(
     license = 'BSD',
     keywords = 'library framework oauth oauth2 redis authentication',
     url = 'http://wedoist.com',
-    packages = ['oauthist', ],
+    packages = ['oauthist'],
+    scripts = ['bin/oauthist'],
     long_description = read('README.rst'),
-    install_requires = ['redis', 'ormist>=0.1,==dev', ],
+    install_requires = requirements,
     # see here for more details on syntax
     # https://groups.google.com/d/msg/python-virtualenv/CwcGLlecT0o/4_JClCuYSjEJ
     # Version must be defined explicitly

@@ -1,0 +1,88 @@
+#!/usr/bin/env python
+import oauthist
+import ormist
+import argparse
+
+def get_parser():
+    parser = argparse.ArgumentParser()
+
+    # redis server options
+    parser.add_argument('-H', '--host', '--hostname', default='127.0.0.1', help='Redis server hostname')
+    parser.add_argument('-p', '--port', default=6379, type=int, help='Redis server port')
+    parser.add_argument('-n', '--db', default=0, type=int, help='Redis database number')
+
+    # subcommands
+    commands = parser.add_subparsers()
+    client_list = commands.add_parser('client_list', help='list of clients')
+    client_show = commands.add_parser('client_show', help='show detailed information about the client')
+    client_add = commands.add_parser('client_add', help='add a new client')
+    client_del = commands.add_parser('client_del', help='delete a client')
+
+    # client_list options
+    client_list.set_defaults(action=do_client_list)
+
+    # client_show options
+    client_show.set_defaults(action=do_client_show)
+    client_show.add_argument('client_id', help='client id')
+
+    # client_add options
+    client_add.set_defaults(action=do_client_add)
+    client_add.add_argument('-t', '--type', choices=oauthist.CLIENT_TYPES, help='client type', required=True, default='web')
+    client_add.add_argument('-u', '--redirect-urls', nargs='+')
+    client_add.add_argument('-n', '--name', help='arbitrary client name', default='My OAuth client')
+    client_add.add_argument('-o', '--owner', help='client owner (user_id)', type=int, required=True)
+
+
+    # client_del options
+    client_del.set_defaults(action=do_client_del)
+    client_del.add_argument('client_id', help='client id')
+
+    return parser
+
+
+def do_client_list(args):
+    for client in oauthist.Client.objects.all():
+        _print_client(client)
+
+
+def do_client_show(args):
+    client = oauthist.Client.objects.get(args.client_id)
+    if client:
+        _print_client(client)
+
+
+def do_client_add(args):
+    client = oauthist.Client(client_type=args.type,
+                             redirect_urls=args.redirect_urls,
+                             name=args.name, user_id=args.owner)
+    client.save()
+    _print_client(client)
+
+
+def do_client_del(args):
+    client = oauthist.Client.objects.get(args.client_id)
+    if client:
+        client.delete()
+        print('Client {0} deleted'.format(client._id))
+    else:
+        print('Client {0} not found'.format(args.client_id))
+
+
+def _print_client(client):
+    print('\n')
+    print('{0} (id: {1})'.format(client.name, client._id))
+    print('-' * 80)
+    for name, value in client.attrs.items():
+        print('{0}: {1}'.format(name, value))
+    print('\n')
+
+
+def main():
+    parser = get_parser()
+    args = parser.parse_args()
+    ormist.setup_redis('oauthist', args.host, args.port, db=args.db)
+    oauthist.configure(ormist_system='oauthist')
+    args.action(args)
+
+if __name__ == '__main__':
+    main()
