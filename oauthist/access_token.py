@@ -79,8 +79,7 @@ class CodeExchangeRequest(GenericAccessTokenRequest):
         """
         Constructor for code exchange request.
 
-        :param code: authorization code, obtained by the client with help of
-                     user
+        :param code: authorization code, obtained by the client with help of user
         :type code: str
 
         :param client_id: client id
@@ -90,20 +89,19 @@ class CodeExchangeRequest(GenericAccessTokenRequest):
         :type client_secret: str
 
         :param redirect_uri: if while obtaining authorization code, client
-                             created a request with redirect uri, then this
-                             redirect uri must be passed here.
-                             Otherwise this field must be set to None
+        created a request with redirect uri, then this redirect uri must be
+        passed here. Otherwise this field must be set to None
         :type redirect_uri: str
 
         :param state: if while obtaining authorization code, client issued a
-                      random "state" parameter, then it should be passed here.
-                      Otherwise this field myst be set to None
+        random "state" parameter, then it should be passed here. Otherwise this
+        field must be set to None
         :type state: str
 
-        :param expire: if you want to override default expiration timeout, defined in
-                 the framework, you can pass the value here. Value may be
-                 integer (seconds since now), timedelta or absulute datetime.
-                 ``None`` means "use ``framework.access_token_timeout``".
+        :param expire: if you want to override default expiration timeout,
+        defined in the framework, you can pass the value here. Value may be
+        integer (seconds since now), timedelta or absulute datetime. ``None``
+        means "use ``framework.access_token_timeout``".
         :type expire: int or datetime.timedelta or datetime.datetime
         """
         self.code = code
@@ -489,8 +487,7 @@ class ProtectedResourceRequest(object):
         :rtype: AccessToken
         :raise: InvalidAccessToken
         """
-        token_object = AccessToken.objects.get(self.access_token,
-                                               )
+        token_object = AccessToken.objects.get(self.access_token)
         if not token_object:
             raise InvalidAccessToken()
         if not scopes:

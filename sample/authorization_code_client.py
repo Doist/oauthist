@@ -67,7 +67,6 @@ def oauth2cb():
     """
     state = request.args.get('state')
     session_state = session.pop('oauth_state', None)
-    print session_state, state
     if not session_state or session_state != state:
         return render_template('client/oauth2cb_missing_state.html')
     error = request.args.get('error')
