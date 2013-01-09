@@ -7,7 +7,7 @@ from oauthist import OauthistValidationError
 
 
 def test_success(web_client):
-    req = oauthist.CodeRequest(client_id=web_client._id,
+    req = oauthist.CodeRequest(client_id=web_client.id,
                                redirect_uri=WEB_CALLBACK,
                                state='1234',
                                scope='user_ro user_rw')
@@ -15,8 +15,8 @@ def test_success(web_client):
     code.accept()
 
     exchange_req = oauthist.CodeExchangeRequest(
-                            code=code._id,
-                            client_id=web_client._id,
+                            code=code.id,
+                            client_id=web_client.id,
                             client_secret=web_client.client_secret,
                             redirect_uri=WEB_CALLBACK,
                             state='1234')
@@ -25,7 +25,7 @@ def test_success(web_client):
 
 
 def test_unable_to_exchange_code_twice(web_client):
-    req = oauthist.CodeRequest(client_id=web_client._id,
+    req = oauthist.CodeRequest(client_id=web_client.id,
                                redirect_uri=WEB_CALLBACK,
                                state='1234',
                                scope='user_ro user_rw')
@@ -34,14 +34,14 @@ def test_unable_to_exchange_code_twice(web_client):
 
     # we can do it once
     exchange_req = oauthist.CodeExchangeRequest(
-        code=code._id, client_id=web_client._id,
+        code=code.id, client_id=web_client.id,
         client_secret=web_client.client_secret, redirect_uri=WEB_CALLBACK,
         state='1234')
     exchange_req.exchange_for_token()
 
     # but not twice
     exchange_req = oauthist.CodeExchangeRequest(
-        code=code._id, client_id=web_client._id,
+        code=code.id, client_id=web_client.id,
         client_secret=web_client.client_secret, redirect_uri=WEB_CALLBACK,
         state='1234')
     with pytest.raises(OauthistValidationError):
@@ -52,15 +52,15 @@ def test_code_unaccepted(web_client):
     """
     If code isn't explicitly accepted, refuse to exchange it to access token
     """
-    req = oauthist.CodeRequest(client_id=web_client._id,
+    req = oauthist.CodeRequest(client_id=web_client.id,
                                redirect_uri=WEB_CALLBACK,
                                state='1234',
                                scope='user_ro user_rw')
     code = req.save_code()
 
     exchange_req = oauthist.CodeExchangeRequest(
-        code=code._id,
-        client_id=web_client._id,
+        code=code.id,
+        client_id=web_client.id,
         client_secret=web_client.client_secret,
         redirect_uri=WEB_CALLBACK,
         state='1234')
@@ -76,7 +76,7 @@ def test_parameters_mismatch(web_client, invalid_param):
     If some parameters in the code exchange request mismatch with same passed
     while receiving the code, raise exception
     """
-    req = oauthist.CodeRequest(client_id=web_client._id,
+    req = oauthist.CodeRequest(client_id=web_client.id,
                                redirect_uri=WEB_CALLBACK,
                                state='1234',
                                scope='user_ro user_rw')
@@ -84,8 +84,8 @@ def test_parameters_mismatch(web_client, invalid_param):
     code.accept()
 
     params = {
-        'code': code._id,
-        'client_id': web_client._id,
+        'code': code.id,
+        'client_id': web_client.id,
         'client_secret': web_client.client_secret,
         'redirect_uri': WEB_CALLBACK,
         'state': '1234'

@@ -232,7 +232,7 @@ class Code(ormist.Model):
         redirect_uri = self.attrs['redirect_uri']
         state = self.attrs.get('state')
 
-        args = [('code', self._id), ]
+        args = [('code', self.id), ]
         if state:
             args.append(('state', state), )
 

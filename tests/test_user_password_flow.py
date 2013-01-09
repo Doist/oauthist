@@ -27,7 +27,7 @@ def http_request(client, *rm_attrs, **attrs):
     form_attrs = {
         'username': 'user1',
         'password': 'password',
-        'client_id': client._id,
+        'client_id': client.id,
         'client_secret': client.client_secret,
         'grant_type': 'password',
     }
@@ -43,7 +43,7 @@ def test_success(web_client):
     access_token = req.exchange_for_token()
     assert access_token.username == 'user1'
     assert access_token.user_id == 1
-    assert access_token.client_id == web_client._id
+    assert access_token.client_id == web_client.id
 
 
 def test_anonymous_request(web_client):

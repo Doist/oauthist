@@ -362,7 +362,7 @@ class AccessToken(ormist.TaggedAttrsModel):
         Return JSON content of the access token, as defined in :rfc:`6749#4.3.3`
         """
         ret = {
-            'access_token': self._id,
+            'access_token': self.id,
             'token_type': 'bearer',
             'scope': self.scope,
         }
