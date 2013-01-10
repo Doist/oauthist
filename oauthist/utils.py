@@ -21,6 +21,16 @@ def add_arguments(url, args):
     return urlunparse(chunks)
 
 
+def add_fragment(url, args):
+    """
+    Add hash URL fragment in the most correct way by replacing the current one
+    (if any).
+    """
+    chunks = list(urlparse(url))
+    chunks[5] = urlencode(args)
+    return urlunparse(chunks)
+
+
 def check_url(url):
     """
     Validate string for URL
