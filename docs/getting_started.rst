@@ -28,6 +28,8 @@ The client library is installed automatically as a dependency for current packag
 Configuration
 -------------
 
+FIXME!
+
 Use :func:`configure` function to set up the framework.
 
 Function accepts following parameters:

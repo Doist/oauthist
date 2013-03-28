@@ -12,7 +12,8 @@ PUBLIC_CLIENTS = ('user-agent', 'native')
 
 # we don't use threading.local() as the only object which can suddenly
 # change its state due to multiprocessing issues in the redis.Redis client
-# But the official documentation ensures that redis.Redis() instances
+#
+# But the redis-py documentation ensures that redis.Redis() instances
 # are thread-safe.
 class framework(object):
     scopes = None
@@ -21,22 +22,23 @@ class framework(object):
     ormist_system = 'default'
 
 
-def configure(ormist_system='default', scopes=None, authorization_code_timeout=3600,
+def configure(ormist_system='default',
+              authorization_code_timeout=3600,
               access_token_timeout=None):
 
     """
     Configure oauthist framework
 
-    :param redis_client: name of the "system" (Redis database connection) which
-                         will be used to store OAuth 2.0 objects
-    :param prefix: the string prefix to use to store and search for keys in
-                   Redis database
-    :param authorizarion_code_timeout:
+    :param ormist_system: name of the "system" (Redis database connection) which
+     will be used to store OAuth 2.0 objects
+
+    :param authorizarion_code_timeout: timeout for authorization codes (`Code`
+    instances)
+
     :param access_code_timeout: expiration timeout of access token
-                                (by default ``None`` which means that token
-                                never expires unless explicitly revoked)
+    (`AccessToken` instances). By default ``None`` which means that token
+    never expires unless explicitly revoked
     """
-    framework.scopes = scopes
     framework.authorization_code_timeout = authorization_code_timeout
     framework.access_token_timeout = access_token_timeout
     framework.ormist_system = ormist_system

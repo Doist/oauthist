@@ -1,44 +1,53 @@
 # -*- coding: utf-8 -*-
+import contextlib
 import pytest
 import oauthist
-from .conftest import (WEB_CALLBACK, setup_module, teardown_function,
-                       fake_werkzeug_request)
-
+from tests.core import setup_function, teardown_function
+from resources import resources
+resources.register_mod('tests.resources_oauthist')
 
 
 #--- Test from_werkzeug
 
-def test_from_werkzeug(web_client):
-    request = fake_werkzeug_request(dict(response_type='code',
-                                         client_id=web_client.id,
-                                         redirect_uri=WEB_CALLBACK,
-                                         scope='user_ro user_rw',
-                                         state='1234'))
-    req = oauthist.CodeRequest.from_werkzeug(request)
-    assert not req.is_broken()
-    assert not req.is_invalid()
+@pytest.mark.fresh
+def test_accept():
+    with contextlib.nested(
+        resources.client_ctx(),
+        resources.werkzeug_code_request_ctx(),
+    ):
+        req = oauthist.CodeRequest.from_werkzeug(resources.werkzeug_code_request)
+        assert not req.is_broken()
 
-    code = req.save_code()
-    assert code.client_id == web_client.id
-    assert code.redirect_uri == WEB_CALLBACK
-    assert code.scope == 'user_ro user_rw'
-    assert code.state == '1234'
+        code = req.save_code(user_id=resources.USER_ID)
+        uri = code.accept()
+        assert code.accepted
+        assert uri == 'http://example.com/callback?code={0}&state={1}'.format(code.id, code.state)
 
-#--- Test valid CodeRequest
 
-def test_is_valid(web_client):
-    req = oauthist.CodeRequest(client_id=web_client.id,
-                               redirect_uri=WEB_CALLBACK,
-                               scope='user_ro user_rw')
-    assert not req.is_broken()
-    assert not req.is_invalid()
+def test_decline():
+    with contextlib.nested(
+        resources.client_ctx(),
+        resources.werkzeug_code_request_ctx(),
+    ):
+        req = oauthist.CodeRequest.from_werkzeug(resources.werkzeug_code_request)
+        assert not req.is_broken()
+
+        code = req.save_code(user_id=resources.USER_ID)
+        uri = code.decline()
+        assert not code.accepted
+        assert uri == 'http://example.com/callback?error=access_denied&state={0}'.format(code.state)
+
+
 
 #--- Test CodeRequest.is_broken
 
-def test_missing_client_id(web_client):
+def test_missing_client_id():
     """ code request is invalid without client_id """
-    req = oauthist.CodeRequest(redirect_uri='http://foo.com/bar',
-                               scope='user_ro user_rw')
+    with contextlib.nested(
+        resources.client_ctx(),
+        resources.code_request_ctx(client_id=''),
+    ):
+    req = oauthist.CodeRequest.from_werkzeug(resources.werkzeug_code_request)
     assert req.is_broken()
     assert req.error == 'missing_client_id'
 
